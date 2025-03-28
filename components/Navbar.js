@@ -2,7 +2,12 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useSession, signIn, signOut } from 'next-auth/react';
-import { Bars3Icon as MenuIcon, XMarkIcon as XIcon, UserCircleIcon } from '@heroicons/react/24/outline';
+import { 
+  Bars3Icon as MenuIcon, 
+  XMarkIcon as XIcon, 
+  UserCircleIcon,
+  MagnifyingGlassIcon
+} from '@heroicons/react/24/outline';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -56,6 +61,35 @@ const Navbar = () => {
           </div>
           
           <div className="hidden sm:flex sm:items-center">
+            {/* Search box */}
+            <div className="mr-4 relative">
+              <form 
+                action="/search" 
+                method="GET" 
+                className="flex items-center"
+                onSubmit={(e) => {
+                  if (e.target.q.value.trim() === '') {
+                    e.preventDefault();
+                  }
+                }}
+              >
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="q"
+                    placeholder="Search prompts..."
+                    className="w-64 h-9 pl-3 pr-10 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500 text-sm"
+                  />
+                  <button
+                    type="submit"
+                    className="absolute right-0 top-0 h-full px-2 flex items-center justify-center text-gray-400 hover:text-primary-600"
+                  >
+                    <MagnifyingGlassIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              </form>
+            </div>
+            
             {!loading && (
               <>
                 {session ? (
@@ -121,6 +155,37 @@ const Navbar = () => {
       {isMenuOpen && (
         <div className="sm:hidden">
           <div className="px-2 pt-2 pb-3 space-y-1">
+            {/* Mobile Search */}
+            <div className="p-2 mb-2">
+              <form 
+                action="/search" 
+                method="GET" 
+                className="flex items-center"
+                onSubmit={(e) => {
+                  if (e.target.q.value.trim() === '') {
+                    e.preventDefault();
+                  } else {
+                    setIsMenuOpen(false);
+                  }
+                }}
+              >
+                <div className="relative w-full">
+                  <input
+                    type="text"
+                    name="q"
+                    placeholder="Search prompts..."
+                    className="w-full h-10 pl-3 pr-10 rounded-md border border-gray-300 focus:outline-none focus:ring-1 focus:ring-primary-500 focus:border-primary-500"
+                  />
+                  <button
+                    type="submit"
+                    className="absolute right-0 top-0 h-full px-3 flex items-center justify-center text-gray-400 hover:text-primary-600"
+                  >
+                    <MagnifyingGlassIcon className="h-5 w-5" />
+                  </button>
+                </div>
+              </form>
+            </div>
+            
             <Link href="/">
               <span 
                 className={`block px-3 py-2 rounded-md text-base font-medium ${isActive('/')} cursor-pointer`}
@@ -151,6 +216,14 @@ const Navbar = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Collections
+              </span>
+            </Link>
+            <Link href="/search">
+              <span 
+                className={`block px-3 py-2 rounded-md text-base font-medium ${isActive('/search')} cursor-pointer`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Advanced Search
               </span>
             </Link>
             

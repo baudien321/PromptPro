@@ -72,6 +72,63 @@ const LandingPage = () => {
               Boost your productivity and AI results with PromptPro.
             </p>
             
+            {/* Quick Search Box */}
+            <div className="mb-8">
+              <div className="relative">
+                <form 
+                  action="/search" 
+                  method="GET" 
+                  className="flex flex-col sm:flex-row gap-3"
+                >
+                  <div className="relative flex-grow">
+                    <input
+                      type="text"
+                      name="q"
+                      placeholder="Search for prompts by keyword, platform, or tag..."
+                      className="w-full border-2 border-primary-300 bg-white h-12 px-5 pr-16 rounded-lg text-md focus:outline-none focus:border-primary-500"
+                    />
+                    <div className="absolute right-3 top-3">
+                      <MagnifyingGlassIcon className="h-6 w-6 text-primary-500" />
+                    </div>
+                  </div>
+                  
+                  <div className="inline-flex gap-2">
+                    <select 
+                      name="platform" 
+                      className="border-2 border-primary-300 h-12 px-4 rounded-lg focus:outline-none focus:border-primary-500 text-gray-700"
+                    >
+                      <option value="">All Platforms</option>
+                      {platforms.map(platform => (
+                        <option key={platform} value={platform}>{platform}</option>
+                      ))}
+                    </select>
+                    
+                    <button
+                      type="submit"
+                      className="bg-primary-600 text-white h-12 px-6 rounded-lg hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                    >
+                      Search
+                    </button>
+                  </div>
+                </form>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="text-sm font-medium text-gray-500">Popular:</span>
+                <Link href="/search?tag=writing" className="text-sm text-primary-600 hover:text-primary-800 hover:underline">
+                  writing
+                </Link>
+                <Link href="/search?tag=coding" className="text-sm text-primary-600 hover:text-primary-800 hover:underline">
+                  coding
+                </Link>
+                <Link href="/search?tag=marketing" className="text-sm text-primary-600 hover:text-primary-800 hover:underline">
+                  marketing
+                </Link>
+                <Link href="/search?tag=images" className="text-sm text-primary-600 hover:text-primary-800 hover:underline">
+                  images
+                </Link>
+              </div>
+            </div>
+            
             {session ? (
               <div className="flex flex-col sm:flex-row gap-4">
                 <Link href="/prompts/create">

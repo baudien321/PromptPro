@@ -100,8 +100,16 @@ const PromptCard = ({ prompt, onDelete, showActions = true }) => {
         </p>
       )}
       
-      <div className="mt-3 text-gray-700 whitespace-pre-line border-l-4 border-gray-200 pl-3">
+      <div 
+        onClick={handleCopy}
+        className="mt-3 text-gray-700 whitespace-pre-line border-l-4 border-gray-200 pl-3 py-1 cursor-pointer hover:bg-gray-50 relative group"
+      >
         {truncateText(prompt.content, 120)}
+        <div className="absolute inset-0 bg-primary-50 bg-opacity-0 group-hover:bg-opacity-25 flex items-center justify-center transition-opacity opacity-0 group-hover:opacity-100">
+          <div className="bg-primary-100 text-primary-800 text-xs px-2 py-1 rounded-md shadow-sm">
+            Click to copy
+          </div>
+        </div>
       </div>
       
       <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">

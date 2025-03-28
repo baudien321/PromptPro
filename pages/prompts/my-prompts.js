@@ -7,8 +7,8 @@ import PromptCard from '../../components/PromptCard';
 import Button from '../../components/Button';
 import AdvancedSearch from '../../components/AdvancedSearch';
 import { 
-  Bars4Icon as ViewListIcon, 
-  Squares2X2Icon as ViewGridIcon, 
+  Bars4Icon, 
+  Squares2X2Icon, 
   AdjustmentsHorizontalIcon,
   PlusIcon
 } from '@heroicons/react/24/outline';
@@ -186,7 +186,7 @@ export default function MyPrompts() {
                 }`}
                 aria-label="Grid View"
               >
-                <ViewGridIcon className="h-5 w-5" />
+                <Squares2X2Icon className="h-5 w-5" />
               </button>
               <button
                 onClick={() => setViewMode('list')}
@@ -197,7 +197,7 @@ export default function MyPrompts() {
                 }`}
                 aria-label="List View"
               >
-                <ViewListIcon className="h-5 w-5" />
+                <Bars4Icon className="h-5 w-5" />
               </button>
             </div>
             

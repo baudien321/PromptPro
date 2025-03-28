@@ -223,13 +223,13 @@ export default function PromptDetail() {
           
           {/* Prompt Content */}
           <div className="px-6 py-5">
-            <div className="relative bg-gray-50 border border-gray-200 rounded-md p-4">
+            <div className="relative bg-gray-50 border border-gray-200 rounded-md p-4 group cursor-pointer" 
+                 onClick={handleCopyToClipboard}>
               <pre className="font-mono text-sm whitespace-pre-wrap overflow-x-auto">
                 {prompt.content}
               </pre>
               <div className="absolute top-2 right-2">
                 <button
-                  onClick={handleCopyToClipboard}
                   className={`p-1.5 rounded-md bg-white shadow-sm border border-gray-200 
                     ${copied ? 'text-green-600' : 'text-gray-500 hover:text-primary-600'}`}
                   aria-label="Copy to clipboard"
@@ -240,6 +240,11 @@ export default function PromptDetail() {
                     <ClipboardIcon className="h-5 w-5" />
                   )}
                 </button>
+              </div>
+              <div className="absolute inset-0 bg-primary-100 bg-opacity-0 group-hover:bg-opacity-10 flex items-center justify-center transition-opacity opacity-0 group-hover:opacity-100 rounded-md">
+                <div className="bg-primary-100 text-primary-800 px-3 py-2 rounded-lg shadow-md">
+                  Click to copy entire prompt
+                </div>
               </div>
             </div>
             
