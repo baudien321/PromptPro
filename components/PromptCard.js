@@ -1,6 +1,14 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { ClipboardIcon as ClipboardCopyIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
+import { 
+  ClipboardIcon as ClipboardCopyIcon, 
+  PencilIcon, 
+  TrashIcon,
+  StarIcon,
+  EyeIcon,
+  ChartBarIcon
+} from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { formatDate, truncateText, copyToClipboard } from '../lib/utils';
 import { useSession } from 'next-auth/react';
 import Button from './Button';
@@ -64,12 +72,71 @@ const PromptCard = ({ prompt, onDelete, showActions = true }) => {
         )}
       </div>
       
-      <p className="text-sm text-gray-500 mt-1">
-        {formatDate(prompt.createdAt)}
-      </p>
+      <div className="flex items-center justify-between mt-1">
+        <p className="text-sm text-gray-500">
+          {formatDate(prompt.createdAt)}
+        </p>
+        
+        <div className="flex items-center space-x-1 text-sm text-gray-500">
+          <span className="inline-flex items-center px-2 py-0.5 rounded bg-blue-100 text-blue-800">
+            {prompt.aiPlatform || 'ChatGPT'}
+          </span>
+          
+          {prompt.visibility && (
+            <span className={`inline-flex items-center px-2 py-0.5 rounded ${
+              prompt.visibility === 'public' ? 'bg-green-100 text-green-800' : 
+              prompt.visibility === 'private' ? 'bg-gray-100 text-gray-800' : 
+              'bg-purple-100 text-purple-800'
+            }`}>
+              {prompt.visibility.charAt(0).toUpperCase() + prompt.visibility.slice(1)}
+            </span>
+          )}
+        </div>
+      </div>
       
-      <div className="mt-3 text-gray-700 whitespace-pre-line">
-        {truncateText(prompt.content, 150)}
+      {prompt.description && (
+        <p className="mt-2 text-sm text-gray-600 italic">
+          {truncateText(prompt.description, 100)}
+        </p>
+      )}
+      
+      <div className="mt-3 text-gray-700 whitespace-pre-line border-l-4 border-gray-200 pl-3">
+        {truncateText(prompt.content, 120)}
+      </div>
+      
+      <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">
+        {prompt.rating !== undefined && (
+          <div className="flex items-center">
+            <div className="flex items-center">
+              {[1, 2, 3, 4, 5].map((rating) => (
+                <span key={rating}>
+                  {rating <= Math.floor(prompt.rating) ? (
+                    <StarIconSolid className="h-4 w-4 text-yellow-400" />
+                  ) : rating <= prompt.rating + 0.5 ? (
+                    <StarIconSolid className="h-4 w-4 text-yellow-400" />
+                  ) : (
+                    <StarIcon className="h-4 w-4 text-gray-300" />
+                  )}
+                </span>
+              ))}
+            </div>
+            <span className="ml-1">{prompt.rating?.toFixed(1) || 0}</span>
+          </div>
+        )}
+        
+        {prompt.usageCount !== undefined && (
+          <div className="flex items-center">
+            <EyeIcon className="h-4 w-4 mr-1 text-gray-400" />
+            <span>{prompt.usageCount || 0} uses</span>
+          </div>
+        )}
+        
+        {prompt.successRate !== undefined && (
+          <div className="flex items-center">
+            <ChartBarIcon className="h-4 w-4 mr-1 text-gray-400" />
+            <span>{prompt.successRate || 0}% success</span>
+          </div>
+        )}
       </div>
       
       {prompt.tags && prompt.tags.length > 0 && (

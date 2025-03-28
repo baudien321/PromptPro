@@ -3,7 +3,19 @@ import { useRouter } from 'next/router';
 import Layout from '../../components/Layout';
 import Button from '../../components/Button';
 import { formatDate, copyToClipboard, generateShareableUrl } from '../../lib/utils';
-import { ClipboardIcon as ClipboardCopyIcon, ShareIcon, TrashIcon, PencilIcon } from '@heroicons/react/24/outline';
+import { 
+  ClipboardIcon as ClipboardCopyIcon, 
+  ShareIcon, 
+  TrashIcon, 
+  PencilIcon,
+  StarIcon,
+  EyeIcon,
+  ChartBarIcon,
+  GlobeAltIcon,
+  LockClosedIcon,
+  UserGroupIcon
+} from '@heroicons/react/24/outline';
+import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import Link from 'next/link';
 
 export default function PromptDetail() {
@@ -150,12 +162,58 @@ export default function PromptDetail() {
         </div>
         
         <div className="bg-white rounded-lg shadow-md p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">{prompt.title}</h1>
+          <div className="flex justify-between items-start mb-4">
+            <h1 className="text-2xl font-bold text-gray-900">{prompt.title}</h1>
+            
+            <div className="flex items-center space-x-2">
+              {prompt.visibility && (
+                <div className="flex items-center text-sm px-2 py-1 rounded">
+                  {prompt.visibility === 'public' ? (
+                    <span className="flex items-center bg-green-100 text-green-800 px-2 py-0.5 rounded">
+                      <GlobeAltIcon className="h-4 w-4 mr-1" />
+                      Public
+                    </span>
+                  ) : prompt.visibility === 'private' ? (
+                    <span className="flex items-center bg-gray-100 text-gray-800 px-2 py-0.5 rounded">
+                      <LockClosedIcon className="h-4 w-4 mr-1" />
+                      Private
+                    </span>
+                  ) : (
+                    <span className="flex items-center bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
+                      <UserGroupIcon className="h-4 w-4 mr-1" />
+                      Team
+                    </span>
+                  )}
+                </div>
+              )}
+              
+              {prompt.aiPlatform && (
+                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded text-sm">
+                  {prompt.aiPlatform}
+                </span>
+              )}
+            </div>
+          </div>
           
-          <p className="text-sm text-gray-500 mb-6">
-            Created on {formatDate(prompt.createdAt)}
-            {prompt.createdAt !== prompt.updatedAt && ` • Updated on ${formatDate(prompt.updatedAt)}`}
-          </p>
+          <div className="flex items-center text-sm text-gray-500 mb-6">
+            <div className="mr-4">
+              Created on {formatDate(prompt.createdAt)}
+              {prompt.createdAt !== prompt.updatedAt && ` • Updated on ${formatDate(prompt.updatedAt)}`}
+            </div>
+            
+            {prompt.createdBy && (
+              <div className="flex items-center">
+                <span className="text-gray-700">by {prompt.createdBy}</span>
+              </div>
+            )}
+          </div>
+          
+          {prompt.description && (
+            <div className="mb-6">
+              <h2 className="text-lg font-semibold text-gray-800 mb-2">Description</h2>
+              <p className="text-gray-700 italic">{prompt.description}</p>
+            </div>
+          )}
           
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-800 mb-2">Prompt Content</h2>
@@ -171,6 +229,53 @@ export default function PromptDetail() {
                 <ClipboardCopyIcon className="h-4 w-4 mr-1" />
                 {copyStatus.content ? 'Copied!' : 'Copy Content'}
               </Button>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8 bg-gray-50 p-4 rounded-md border border-gray-200">
+            {/* Rating */}
+            <div className="flex flex-col">
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Rating</h3>
+              <div className="flex items-center">
+                <div className="flex items-center mr-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <span key={star}>
+                      {star <= Math.floor(prompt.rating || 0) ? (
+                        <StarIconSolid className="h-5 w-5 text-yellow-400" />
+                      ) : star <= (prompt.rating || 0) + 0.5 ? (
+                        <StarIconSolid className="h-5 w-5 text-yellow-400" />
+                      ) : (
+                        <StarIcon className="h-5 w-5 text-gray-300" />
+                      )}
+                    </span>
+                  ))}
+                </div>
+                <span className="text-lg font-medium text-gray-800">
+                  {prompt.rating?.toFixed(1) || "0.0"}
+                </span>
+              </div>
+            </div>
+            
+            {/* Usage Count */}
+            <div className="flex flex-col">
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Usage Count</h3>
+              <div className="flex items-center">
+                <EyeIcon className="h-5 w-5 text-gray-400 mr-2" />
+                <span className="text-lg font-medium text-gray-800">
+                  {prompt.usageCount || 0}
+                </span>
+              </div>
+            </div>
+            
+            {/* Success Rate */}
+            <div className="flex flex-col">
+              <h3 className="text-sm font-medium text-gray-500 mb-1">Success Rate</h3>
+              <div className="flex items-center">
+                <ChartBarIcon className="h-5 w-5 text-gray-400 mr-2" />
+                <span className="text-lg font-medium text-gray-800">
+                  {prompt.successRate || 0}%
+                </span>
+              </div>
             </div>
           </div>
           

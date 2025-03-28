@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Layout from '../components/Layout';
 import PromptCard from '../components/PromptCard';
-import SearchBar from '../components/SearchBar';
+import AdvancedSearch from '../components/AdvancedSearch';
 import Button from '../components/Button';
 import Link from 'next/link';
 import { useSession, signIn } from 'next-auth/react';
@@ -41,10 +41,10 @@ export default function Home() {
     fetchPrompts();
   }, []);
   
-  const handleSearch = async (query) => {
+  const handleSearch = async (searchParams) => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+      const response = await fetch(`/api/search?${searchParams}`);
       
       if (!response.ok) {
         throw new Error('Search failed');
@@ -113,27 +113,26 @@ export default function Home() {
           )}
         </div>
         
-        <div className="flex flex-col space-y-6 md:flex-row md:space-y-0 md:space-x-6">
-          <div className="md:w-2/3">
-            <SearchBar onSearch={handleSearch} />
-          </div>
-          
-          <div className="md:w-1/3">
-            <div className="flex flex-wrap gap-2">
-              {tags.map((tag, index) => (
-                <button
-                  key={index}
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    selectedTag === tag
-                      ? 'bg-primary-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                  }`}
-                  onClick={() => handleTagClick(tag)}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
+        <div className="mb-4">
+          <AdvancedSearch onSearch={handleSearch} />
+        </div>
+        
+        <div className="mb-4">
+          <h2 className="text-lg font-medium text-gray-800 mb-2">Popular Tags</h2>
+          <div className="flex flex-wrap gap-2">
+            {tags.map((tag, index) => (
+              <button
+                key={index}
+                className={`px-3 py-1 rounded-full text-sm font-medium ${
+                  selectedTag === tag
+                    ? 'bg-primary-600 text-white'
+                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                }`}
+                onClick={() => handleTagClick(tag)}
+              >
+                {tag}
+              </button>
+            ))}
           </div>
         </div>
         
