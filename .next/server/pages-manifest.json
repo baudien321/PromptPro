@@ -2,7 +2,8 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/teams": "pages/teams.js",
+  "/dashboard": "pages/dashboard.js",
+  "/api/prompts": "pages/api/prompts.js",
   "/api/auth/[...nextauth]": "pages/api/auth/[...nextauth].js",
-  "/api/teams": "pages/api/teams.js"
+  "/api/collections": "pages/api/collections.js"
 }

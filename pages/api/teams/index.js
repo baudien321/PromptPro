@@ -59,7 +59,8 @@ function createTeamHandler(req, res) {
     const validation = validateTeam(req.body);
     
     if (!validation.isValid) {
-      return res.status(400).json({ message: validation.errors.join(', ') });
+      const errorMessages = Object.values(validation.errors).join(', ');
+      return res.status(400).json({ message: errorMessages });
     }
     
     // Check if user is authenticated

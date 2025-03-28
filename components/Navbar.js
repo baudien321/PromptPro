@@ -41,6 +41,11 @@ const Navbar = () => {
                     Home
                   </span>
                 </Link>
+                <Link href="/dashboard">
+                  <span className={`px-3 py-2 rounded-md text-sm font-medium ${isActive('/dashboard')} cursor-pointer`}>
+                    Dashboard
+                  </span>
+                </Link>
                 <Link href="/prompts/my-prompts">
                   <span className={`px-3 py-2 rounded-md text-sm font-medium ${isActive('/prompts/my-prompts')} cursor-pointer`}>
                     My Prompts
@@ -197,6 +202,14 @@ const Navbar = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Home
+              </span>
+            </Link>
+            <Link href="/dashboard">
+              <span 
+                className={`block px-3 py-2 rounded-md text-base font-medium ${isActive('/dashboard')} cursor-pointer`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Dashboard
               </span>
             </Link>
             <Link href="/prompts/my-prompts">
