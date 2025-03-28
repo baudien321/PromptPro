@@ -56,6 +56,11 @@ const Navbar = () => {
                     Collections
                   </span>
                 </Link>
+                <Link href="/teams">
+                  <span className={`px-3 py-2 rounded-md text-sm font-medium ${isActive('/teams')} cursor-pointer`}>
+                    Teams
+                  </span>
+                </Link>
               </div>
             </div>
           </div>
@@ -216,6 +221,14 @@ const Navbar = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 Collections
+              </span>
+            </Link>
+            <Link href="/teams">
+              <span 
+                className={`block px-3 py-2 rounded-md text-base font-medium ${isActive('/teams')} cursor-pointer`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                Teams
               </span>
             </Link>
             <Link href="/search">
