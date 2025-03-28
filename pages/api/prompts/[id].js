@@ -7,7 +7,7 @@ async function handler(req, res) {
   
   switch (req.method) {
     case 'GET':
-      return getPrompt(req, res, id);
+      return await getPrompt(req, res, id);
     case 'PUT':
       return updatePromptHandler(req, res, id);
     case 'DELETE':
@@ -20,9 +20,25 @@ async function handler(req, res) {
 // Apply authentication to PUT and DELETE methods
 export default withAuthForMethods(handler, ['PUT', 'DELETE']);
 
-function getPrompt(req, res, id) {
+async function getPrompt(req, res, id) {
   try {
-    const prompt = getPromptById(id);
+    // We use a retry mechanism because sometimes the database is still initializing
+    // when a new prompt ID is requested right after creation
+    let prompt = null;
+    let retries = 5;
+    
+    const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+    
+    while (!prompt && retries > 0) {
+      prompt = getPromptById(id);
+      if (!prompt) {
+        retries--;
+        if (retries > 0) {
+          // Wait for a short time before retrying
+          await wait(50); // Wait 50ms between retries
+        }
+      }
+    }
     
     if (!prompt) {
       return res.status(404).json({ message: 'Prompt not found' });

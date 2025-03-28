@@ -124,17 +124,27 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
       return;
     }
     
+    // Create a cleaned version of the prompt data (removing any unnecessary fields)
     const promptData = {
-      title: formData.title,
-      content: formData.content,
-      description: formData.description,
-      tags: formData.tags,
-      aiPlatform: formData.aiPlatform,
-      visibility: formData.visibility,
-      userId: session?.user?.id
+      title: formData.title.trim(),
+      content: formData.content.trim(),
+      description: formData.description.trim() || "", // Ensure description is never undefined
+      tags: formData.tags || [],
+      aiPlatform: formData.aiPlatform || "chatgpt",
+      visibility: formData.visibility || "private",
+      userId: session?.user?.id,
+      createdBy: session?.user?.name || "Anonymous"
     };
     
-    await onSubmit(promptData);
+    try {
+      await onSubmit(promptData);
+    } catch (error) {
+      console.error("Error submitting prompt:", error);
+      setErrors(prev => ({
+        ...prev,
+        submit: error.message || "Failed to save prompt. Please try again."
+      }));
+    }
   };
   
   const handleCancel = () => {
@@ -145,6 +155,12 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
     <form onSubmit={handleSubmit} className="space-y-6 bg-white shadow sm:rounded-md sm:overflow-hidden">
       <div className="px-4 py-5 sm:p-6">
         <div className="space-y-6">
+          {errors.submit && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+              <p className="text-sm text-red-600">{errors.submit}</p>
+            </div>
+          )}
+          
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700">
               Title <span className="text-red-500">*</span>

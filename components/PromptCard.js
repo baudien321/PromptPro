@@ -161,7 +161,7 @@ const PromptCard = ({ prompt, onDelete, showActions = true }) => {
         <div className="mt-4 flex flex-wrap gap-2">
           {prompt.tags.map((tag, index) => (
             <span
-              key={index}
+              key={`tag-${prompt.id}-${tag}-${index}`}
               className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
             >
               {tag}
