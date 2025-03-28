@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { useSession } from 'next-auth/react';
 import Layout from '../../components/Layout';
 import PromptCard from '../../components/PromptCard';
 import Button from '../../components/Button';
-import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/outline';
+import { PlusIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 
 export default function CollectionDetail() {
   const router = useRouter();
   const { id } = router.query;
+  const { data: session } = useSession();
   
   const [collection, setCollection] = useState(null);
   const [prompts, setPrompts] = useState([]);

@@ -6,6 +6,8 @@ export const promptModel = {
   tags: Array, // of strings
   createdAt: String, // ISO date string
   updatedAt: String, // ISO date string
+  userId: String, // ID of the user who created the prompt
+  createdBy: String, // Name of the user who created the prompt
 };
 
 // Validate prompt data

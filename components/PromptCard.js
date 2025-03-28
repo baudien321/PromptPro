@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { ClipboardIcon as ClipboardCopyIcon, PencilIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { formatDate, truncateText, copyToClipboard } from '../lib/utils';
+import { useSession } from 'next-auth/react';
 import Button from './Button';
 
 const PromptCard = ({ prompt, onDelete, showActions = true }) => {
   const [isCopied, setIsCopied] = useState(false);
+  const { data: session } = useSession();
   
   if (!prompt) return null;
+  
+  const isOwner = session && prompt.userId === session.user.id;
   
   const handleCopy = async () => {
     const success = await copyToClipboard(prompt.content);
@@ -39,19 +43,23 @@ const PromptCard = ({ prompt, onDelete, showActions = true }) => {
               <span className="sr-only">Copy</span>
             </button>
             
-            <Link href={`/prompts/edit/${prompt.id}`} className="text-gray-500 hover:text-primary-600 focus:outline-none" title="Edit prompt">
-                <PencilIcon className="h-5 w-5" />
-                <span className="sr-only">Edit</span>
-            </Link>
-            
-            <button
-              onClick={handleDelete}
-              className="text-gray-500 hover:text-red-600 focus:outline-none"
-              title="Delete prompt"
-            >
-              <TrashIcon className="h-5 w-5" />
-              <span className="sr-only">Delete</span>
-            </button>
+            {isOwner && (
+              <>
+                <Link href={`/prompts/edit/${prompt.id}`} className="text-gray-500 hover:text-primary-600 focus:outline-none" title="Edit prompt">
+                    <PencilIcon className="h-5 w-5" />
+                    <span className="sr-only">Edit</span>
+                </Link>
+                
+                <button
+                  onClick={handleDelete}
+                  className="text-gray-500 hover:text-red-600 focus:outline-none"
+                  title="Delete prompt"
+                >
+                  <TrashIcon className="h-5 w-5" />
+                  <span className="sr-only">Delete</span>
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>

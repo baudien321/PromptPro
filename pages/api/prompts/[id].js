@@ -1,7 +1,8 @@
 import { getPromptById, updatePrompt, deletePrompt } from '../../../lib/db';
 import { validatePrompt } from '../../../models/prompt';
+import { withAuthForMethods } from '../../../lib/auth';
 
-export default function handler(req, res) {
+async function handler(req, res) {
   const { id } = req.query;
   
   switch (req.method) {
@@ -15,6 +16,9 @@ export default function handler(req, res) {
       return res.status(405).json({ message: 'Method not allowed' });
   }
 }
+
+// Apply authentication to PUT and DELETE methods
+export default withAuthForMethods(handler, ['PUT', 'DELETE']);
 
 function getPrompt(req, res, id) {
   try {
@@ -49,6 +53,12 @@ function updatePromptHandler(req, res, id) {
       return res.status(404).json({ message: 'Prompt not found' });
     }
     
+    // Check if the user is the owner of the prompt
+    const userId = req.session?.sub;
+    if (existingPrompt.userId && existingPrompt.userId !== userId) {
+      return res.status(403).json({ message: 'You are not authorized to update this prompt' });
+    }
+    
     // Update the prompt
     const updatedPrompt = updatePrompt(id, { title, content, tags });
     
@@ -66,6 +76,12 @@ function deletePromptHandler(req, res, id) {
     
     if (!existingPrompt) {
       return res.status(404).json({ message: 'Prompt not found' });
+    }
+    
+    // Check if the user is the owner of the prompt
+    const userId = req.session?.sub;
+    if (existingPrompt.userId && existingPrompt.userId !== userId) {
+      return res.status(403).json({ message: 'You are not authorized to delete this prompt' });
     }
     
     // Delete the prompt

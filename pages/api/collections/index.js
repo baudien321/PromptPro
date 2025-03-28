@@ -1,7 +1,8 @@
 import { getAllCollections, createCollection } from '../../../lib/db';
 import { validateCollection } from '../../../models/collection';
+import { withAuthForMethods } from '../../../lib/auth';
 
-export default function handler(req, res) {
+async function handler(req, res) {
   switch (req.method) {
     case 'GET':
       return getCollections(req, res);
@@ -11,6 +12,9 @@ export default function handler(req, res) {
       return res.status(405).json({ message: 'Method not allowed' });
   }
 }
+
+// Protect POST, PUT, DELETE methods
+export default withAuthForMethods(handler);
 
 function getCollections(req, res) {
   try {
@@ -33,8 +37,17 @@ function addCollection(req, res) {
       return res.status(400).json({ errors: validation.errors });
     }
     
-    // Create the collection
-    const newCollection = createCollection({ name, description });
+    // Add user information from the session
+    const userId = req.session?.sub;
+    const userName = req.session?.name || 'Anonymous';
+    
+    // Create the collection with user information
+    const newCollection = createCollection({ 
+      name, 
+      description,
+      userId,
+      createdBy: userName
+    });
     
     return res.status(201).json(newCollection);
   } catch (error) {

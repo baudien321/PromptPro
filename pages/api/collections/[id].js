@@ -1,7 +1,8 @@
 import { getCollectionById, updateCollection, deleteCollection, addPromptToCollection, removePromptFromCollection } from '../../../lib/db';
 import { validateCollection } from '../../../models/collection';
+import { withAuthForMethods } from '../../../lib/auth';
 
-export default function handler(req, res) {
+async function handler(req, res) {
   const { id } = req.query;
   
   switch (req.method) {
@@ -15,6 +16,9 @@ export default function handler(req, res) {
       return res.status(405).json({ message: 'Method not allowed' });
   }
 }
+
+// Apply authentication to PUT and DELETE methods
+export default withAuthForMethods(handler, ['PUT', 'DELETE']);
 
 function getCollection(req, res, id) {
   try {
@@ -49,6 +53,12 @@ function updateCollectionHandler(req, res, id) {
       return res.status(404).json({ message: 'Collection not found' });
     }
     
+    // Check if the user is the owner of the collection
+    const userId = req.session?.sub;
+    if (existingCollection.userId && existingCollection.userId !== userId) {
+      return res.status(403).json({ message: 'You are not authorized to update this collection' });
+    }
+    
     // Update the collection
     const updatedCollection = updateCollection(id, { name, description });
     
@@ -66,6 +76,12 @@ function deleteCollectionHandler(req, res, id) {
     
     if (!existingCollection) {
       return res.status(404).json({ message: 'Collection not found' });
+    }
+    
+    // Check if the user is the owner of the collection
+    const userId = req.session?.sub;
+    if (existingCollection.userId && existingCollection.userId !== userId) {
+      return res.status(403).json({ message: 'You are not authorized to delete this collection' });
     }
     
     // Delete the collection

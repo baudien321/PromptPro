@@ -4,9 +4,11 @@ import PromptCard from '../components/PromptCard';
 import SearchBar from '../components/SearchBar';
 import Button from '../components/Button';
 import Link from 'next/link';
+import { useSession, signIn } from 'next-auth/react';
 import { filterPromptsByTag, getUniqueTags } from '../lib/utils';
 
 export default function Home() {
+  const { data: session } = useSession();
   const [prompts, setPrompts] = useState([]);
   const [filteredPrompts, setFilteredPrompts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -97,9 +99,18 @@ export default function Home() {
       <div className="flex flex-col space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <h1 className="text-3xl font-bold text-gray-900">AI Prompts</h1>
-          <Link href="/prompts/create" className="mt-3 md:mt-0">
-            <Button variant="primary">Create New Prompt</Button>
-          </Link>
+          {session ? (
+            <Link href="/prompts/create" className="mt-3 md:mt-0">
+              <Button variant="primary">Create New Prompt</Button>
+            </Link>
+          ) : (
+            <button
+              onClick={() => signIn('google')}
+              className="mt-3 md:mt-0 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              Sign in to Create
+            </button>
+          )}
         </div>
         
         <div className="flex flex-col space-y-6 md:flex-row md:space-y-0 md:space-x-6">
@@ -144,9 +155,18 @@ export default function Home() {
             {filteredPrompts.length === 0 ? (
               <div className="text-center py-8">
                 <p className="text-gray-500">No prompts found.</p>
-                <Link href="/prompts/create" className="mt-4 inline-block text-primary-600 hover:underline">
-                  Create your first prompt
-                </Link>
+                {session ? (
+                  <Link href="/prompts/create" className="mt-4 inline-block text-primary-600 hover:underline">
+                    Create your first prompt
+                  </Link>
+                ) : (
+                  <button 
+                    onClick={() => signIn('google')} 
+                    className="mt-4 inline-block text-primary-600 hover:underline"
+                  >
+                    Sign in to create your first prompt
+                  </button>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

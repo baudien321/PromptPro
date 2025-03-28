@@ -6,6 +6,8 @@ export const collectionModel = {
   prompts: Array, // of prompt IDs
   createdAt: String, // ISO date string
   updatedAt: String, // ISO date string
+  userId: String, // ID of the user who created the collection
+  createdBy: String, // Name of the user who created the collection
 };
 
 // Validate collection data

@@ -1,15 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import { useSession, signIn } from 'next-auth/react';
 import Layout from '../../../components/Layout';
 import PromptEditor from '../../../components/PromptEditor';
 
 export default function EditPrompt() {
   const router = useRouter();
   const { id } = router.query;
+  const { data: session, status } = useSession();
   
   const [prompt, setPrompt] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [unauthorized, setUnauthorized] = useState(false);
   
   useEffect(() => {
     const fetchPrompt = async () => {
@@ -28,6 +31,11 @@ export default function EditPrompt() {
         
         const data = await response.json();
         setPrompt(data);
+        
+        // Check if the current user is the owner of the prompt
+        if (session && data.userId !== session.user.id) {
+          setUnauthorized(true);
+        }
       } catch (error) {
         console.error('Error fetching prompt:', error);
         setError(error.message);
@@ -36,8 +44,10 @@ export default function EditPrompt() {
       }
     };
     
-    fetchPrompt();
-  }, [id]);
+    if (status !== 'loading') {
+      fetchPrompt();
+    }
+  }, [id, session, status]);
   
   const handleSubmit = async (formData) => {
     try {
@@ -83,6 +93,40 @@ export default function EditPrompt() {
           <button
             className="btn-primary mt-4"
             onClick={() => router.push('/')}
+          >
+            Return to Home
+          </button>
+        </div>
+      </Layout>
+    );
+  }
+  
+  if (!session) {
+    return (
+      <Layout title="Sign In Required - PromptPro">
+        <div className="max-w-3xl mx-auto text-center py-12">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Authentication Required</h1>
+          <p className="text-lg text-gray-600 mb-6">You need to be signed in to edit prompts.</p>
+          <button
+            onClick={() => signIn('google')}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+          >
+            Sign in with Google
+          </button>
+        </div>
+      </Layout>
+    );
+  }
+
+  if (unauthorized) {
+    return (
+      <Layout title="Unauthorized - PromptPro">
+        <div className="max-w-3xl mx-auto text-center py-12">
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">Unauthorized Access</h1>
+          <p className="text-lg text-gray-600 mb-6">You don't have permission to edit this prompt.</p>
+          <button
+            onClick={() => router.push('/')}
+            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
           >
             Return to Home
           </button>

@@ -2,16 +2,16 @@ import React, { useState, useEffect } from 'react';
 import Layout from '../../components/Layout';
 import CollectionCard from '../../components/CollectionCard';
 import Button from '../../components/Button';
-import { PlusIcon } from '@heroicons/react/outline';
+import { PlusIcon } from '@heroicons/react/24/outline';
 import Link from 'next/link';
+import { useSession, signIn } from 'next-auth/react';
 
 export default function Collections() {
+  const { data: session, status } = useSession();
   const [collections, setCollections] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', description: '' });
-  const [formErrors, setFormErrors] = useState({});
+  // Collection state
   
   useEffect(() => {
     const fetchCollections = async () => {
@@ -53,145 +53,30 @@ export default function Collections() {
     }
   };
   
-  const handleCreateFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    
-    // Clear error when typing
-    if (formErrors[name]) {
-      setFormErrors(prev => ({
-        ...prev,
-        [name]: undefined
-      }));
-    }
-  };
-  
-  const validateForm = () => {
-    const errors = {};
-    
-    if (!formData.name.trim()) {
-      errors.name = 'Name is required';
-    } else if (formData.name.length < 3) {
-      errors.name = 'Name must be at least 3 characters';
-    }
-    
-    if (formData.description && formData.description.length > 200) {
-      errors.description = 'Description must be less than 200 characters';
-    }
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-  
-  const handleCreateCollection = async (e) => {
-    e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
-    
-    try {
-      const response = await fetch('/api/collections', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to create collection');
-      }
-      
-      const newCollection = await response.json();
-      
-      setCollections([...collections, newCollection]);
-      setFormData({ name: '', description: '' });
-      setShowCreateForm(false);
-    } catch (error) {
-      console.error('Error creating collection:', error);
-      setFormErrors(prev => ({
-        ...prev,
-        submit: 'Failed to create collection. Please try again.'
-      }));
-    }
-  };
+  // Collection methods are now moved to dedicated create/edit pages
   
   return (
     <Layout title="Collections - PromptPro">
       <div className="flex flex-col space-y-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <h1 className="text-3xl font-bold text-gray-900">Collections</h1>
-          <Button
-            variant="primary"
-            onClick={() => setShowCreateForm(!showCreateForm)}
-          >
-            <PlusIcon className="h-5 w-5 mr-1" />
-            {showCreateForm ? 'Cancel' : 'Create Collection'}
-          </Button>
+          {session ? (
+            <Link href="/collections/create">
+              <Button variant="primary">
+                <PlusIcon className="h-5 w-5 mr-1" />
+                Create Collection
+              </Button>
+            </Link>
+          ) : (
+            <button
+              onClick={() => signIn('google')}
+              className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              Sign in to Create
+            </button>
+          )}
         </div>
-        
-        {showCreateForm && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4">Create New Collection</h2>
-            
-            <form onSubmit={handleCreateCollection} className="space-y-4">
-              <div>
-                <label htmlFor="name" className="label">
-                  Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleCreateFormChange}
-                  className={`input ${formErrors.name ? 'border-red-500' : ''}`}
-                  placeholder="Collection name"
-                />
-                {formErrors.name && (
-                  <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
-                )}
-              </div>
-              
-              <div>
-                <label htmlFor="description" className="label">
-                  Description
-                </label>
-                <textarea
-                  id="description"
-                  name="description"
-                  value={formData.description}
-                  onChange={handleCreateFormChange}
-                  rows={3}
-                  className={`input ${formErrors.description ? 'border-red-500' : ''}`}
-                  placeholder="A short description of the collection"
-                />
-                {formErrors.description && (
-                  <p className="mt-1 text-sm text-red-600">{formErrors.description}</p>
-                )}
-              </div>
-              
-              {formErrors.submit && (
-                <div className="bg-red-50 p-4 rounded-md">
-                  <p className="text-sm text-red-700">{formErrors.submit}</p>
-                </div>
-              )}
-              
-              <div className="flex justify-end">
-                <Button
-                  type="submit"
-                  variant="primary"
-                >
-                  Create Collection
-                </Button>
-              </div>
-            </form>
-          </div>
-        )}
+
         
         {error && (
           <div className="bg-red-50 p-4 rounded-md">
@@ -212,12 +97,20 @@ export default function Collections() {
               <div className="text-center py-12 bg-white rounded-lg shadow-md">
                 <h2 className="text-xl font-medium text-gray-900 mb-2">No Collections Yet</h2>
                 <p className="text-gray-500 mb-6">Create your first collection to organize your prompts.</p>
-                <Button
-                  variant="primary"
-                  onClick={() => setShowCreateForm(true)}
-                >
-                  Create Collection
-                </Button>
+                {session ? (
+                  <Link href="/collections/create">
+                    <Button variant="primary">
+                      Create Collection
+                    </Button>
+                  </Link>
+                ) : (
+                  <button
+                    onClick={() => signIn('google')}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                  >
+                    Sign in to Create
+                  </button>
+                )}
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

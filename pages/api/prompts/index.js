@@ -1,7 +1,8 @@
 import { getAllPrompts, createPrompt } from '../../../lib/db';
 import { validatePrompt } from '../../../models/prompt';
+import { withAuthForMethods } from '../../../lib/auth';
 
-export default function handler(req, res) {
+async function handler(req, res) {
   switch (req.method) {
     case 'GET':
       return getPrompts(req, res);
@@ -11,6 +12,9 @@ export default function handler(req, res) {
       return res.status(405).json({ message: 'Method not allowed' });
   }
 }
+
+// Protect POST, PUT, DELETE methods
+export default withAuthForMethods(handler);
 
 function getPrompts(req, res) {
   try {
@@ -33,8 +37,18 @@ function addPrompt(req, res) {
       return res.status(400).json({ errors: validation.errors });
     }
     
-    // Create the prompt
-    const newPrompt = createPrompt({ title, content, tags });
+    // Add user information from the session
+    const userId = req.session?.sub;
+    const userName = req.session?.name || 'Anonymous';
+    
+    // Create the prompt with user information
+    const newPrompt = createPrompt({ 
+      title, 
+      content, 
+      tags,
+      userId,
+      createdBy: userName
+    });
     
     return res.status(201).json(newPrompt);
   } catch (error) {
