@@ -1,6 +1,7 @@
 import { getCollectionById, addPromptToCollection, removePromptFromCollection } from '../../../../../lib/db';
+import { withAuthForMethods } from '../../../../../lib/auth';
 
-export default function handler(req, res) {
+async function handler(req, res) {
   const { id, promptId } = req.query;
   
   switch (req.method) {
@@ -13,6 +14,9 @@ export default function handler(req, res) {
   }
 }
 
+// Apply authentication to POST and DELETE methods
+export default withAuthForMethods(handler, ['POST', 'DELETE']);
+
 function addPromptToCollectionHandler(req, res, collectionId, promptId) {
   try {
     // Check if collection exists
@@ -20,6 +24,12 @@ function addPromptToCollectionHandler(req, res, collectionId, promptId) {
     
     if (!existingCollection) {
       return res.status(404).json({ message: 'Collection not found' });
+    }
+    
+    // Check if the user is the owner of the collection
+    const userId = req.session?.user?.id || req.session?.sub;
+    if (existingCollection.userId && existingCollection.userId !== userId) {
+      return res.status(403).json({ message: 'You are not authorized to modify this collection' });
     }
     
     // Add prompt to collection
@@ -43,6 +53,12 @@ function removePromptFromCollectionHandler(req, res, collectionId, promptId) {
     
     if (!existingCollection) {
       return res.status(404).json({ message: 'Collection not found' });
+    }
+    
+    // Check if the user is the owner of the collection
+    const userId = req.session?.user?.id || req.session?.sub;
+    if (existingCollection.userId && existingCollection.userId !== userId) {
+      return res.status(403).json({ message: 'You are not authorized to modify this collection' });
     }
     
     // Remove prompt from collection

@@ -60,6 +60,12 @@ export default function CollectionDetail() {
   const handleDeleteCollection = async () => {
     if (!collection) return;
     
+    // Check if user is authenticated and is the collection owner
+    if (!session || !session.user || session.user.id !== collection.userId) {
+      alert('You must be the collection owner to delete it');
+      return;
+    }
+    
     if (window.confirm('Are you sure you want to delete this collection? This will not delete the prompts inside.')) {
       try {
         const response = await fetch(`/api/collections/${collection.id}`, {
@@ -80,6 +86,12 @@ export default function CollectionDetail() {
   
   const handleRemovePrompt = async (promptId) => {
     if (!collection) return;
+    
+    // Check if user is authenticated and is the collection owner
+    if (!session || !session.user || session.user.id !== collection.userId) {
+      alert('You must be the collection owner to remove prompts');
+      return;
+    }
     
     if (window.confirm('Remove this prompt from the collection?')) {
       try {
@@ -153,24 +165,24 @@ export default function CollectionDetail() {
             Back to Collections
           </Button>
           
-          <div className="flex space-x-2">
-            <Link href={`/collections/edit/${collection.id}`}>
-              <a>
+          {session && session.user && session.user.id === collection.userId && (
+            <div className="flex space-x-2">
+              <Link href={`/collections/edit/${collection.id}`}>
                 <Button variant="secondary">
                   <PencilIcon className="h-4 w-4 mr-1" />
                   Edit
                 </Button>
-              </a>
-            </Link>
-            
-            <Button
-              variant="danger"
-              onClick={handleDeleteCollection}
-            >
-              <TrashIcon className="h-4 w-4 mr-1" />
-              Delete
-            </Button>
-          </div>
+              </Link>
+              
+              <Button
+                variant="danger"
+                onClick={handleDeleteCollection}
+              >
+                <TrashIcon className="h-4 w-4 mr-1" />
+                Delete
+              </Button>
+            </div>
+          )}
         </div>
         
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
@@ -188,26 +200,26 @@ export default function CollectionDetail() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-semibold text-gray-900">Prompts</h2>
           
-          <Link href="/">
-            <a>
+          {session && session.user && session.user.id === collection.userId && (
+            <Link href="/">
               <Button variant="primary">
                 <PlusIcon className="h-4 w-4 mr-1" />
                 Add Prompt
               </Button>
-            </a>
-          </Link>
+            </Link>
+          )}
         </div>
         
         {prompts.length === 0 ? (
           <div className="bg-white rounded-lg shadow-md p-8 text-center">
             <p className="text-gray-500 mb-4">No prompts in this collection yet.</p>
-            <Link href="/">
-              <a>
+            {session && session.user && session.user.id === collection.userId && (
+              <Link href="/">
                 <Button variant="primary">
                   Browse Prompts to Add
                 </Button>
-              </a>
-            </Link>
+              </Link>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
