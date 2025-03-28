@@ -66,7 +66,8 @@ export default async function handler(req, res) {
     
     // User ID filtering - only allow if it's the current user or admin
     if (userId) {
-      if (session && (session.user.id.toString() === userId || session.user.role === 'admin')) {
+      if (session && session.user && session.user.id && 
+          (session.user.id.toString() === userId || session.user.role === 'admin')) {
         searchOptions.userId = parseInt(userId, 10);
       } else {
         // If not authenticated or not the user, only return public prompts
@@ -75,14 +76,14 @@ export default async function handler(req, res) {
     }
     
     // Team filtering - ensure the user is part of the team
-    if (teamId && session) {
+    if (teamId && session && session.user) {
       // In a real app, you would check if the user is part of the team
       // For now, just pass it through (would be validated in the searchPrompts function)
       searchOptions.teamId = parseInt(teamId, 10);
     }
     
-    // If not authenticated, only return public prompts
-    if (!session) {
+    // If not authenticated or session is incomplete, only return public prompts
+    if (!session || !session.user) {
       searchOptions.visibility = 'public';
     }
     

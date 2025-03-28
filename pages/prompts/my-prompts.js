@@ -38,7 +38,15 @@ export default function MyPrompts() {
         setIsLoading(true);
         
         // Fetch user's prompts
-        const response = await fetch(`/api/search?userId=${session.user.id}`);
+        // Make sure we have the user ID before making the request
+        if (!session.user || !session.user.id) {
+          console.error('User session is incomplete');
+          setError('User authentication error. Please try signing in again.');
+          setIsLoading(false);
+          return;
+        }
+        
+        const response = await fetch(`/api/search?userId=${session.user.id}&sortBy=createdAt&sortDirection=desc`);
         
         if (!response.ok) {
           throw new Error('Failed to fetch your prompts');
@@ -67,6 +75,11 @@ export default function MyPrompts() {
       setIsLoading(true);
       // Add user ID to search params to only get current user's prompts
       const userId = session?.user?.id;
+      
+      if (!userId) {
+        throw new Error("User session is incomplete");
+      }
+      
       const separator = searchParams ? '&' : '';
       const response = await fetch(`/api/search?${searchParams}${separator}userId=${userId}`);
       
