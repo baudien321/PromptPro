@@ -271,6 +271,69 @@ export default function PromptDetail() {
             )}
           </div>
           
+          {/* Performance Metrics */}
+          <div className="px-6 py-4 border-t border-gray-200">
+            <h3 className="text-sm font-medium text-gray-700 mb-3">Performance Metrics</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="text-xs text-gray-500 mb-1">Usage Count</div>
+                <div className="text-xl font-semibold text-gray-900">{prompt.usageCount || 0}</div>
+                <div className="mt-1 text-xs text-gray-500">Number of times this prompt has been used</div>
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="text-xs text-gray-500 mb-1">Success Rate</div>
+                <div className="text-xl font-semibold text-gray-900">{prompt.successRate || 0}%</div>
+                <div className="mt-1 text-xs text-gray-500">Percentage of successful outcomes</div>
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="text-xs text-gray-500 mb-1">Average Rating</div>
+                <div className="flex items-center">
+                  <span className="text-xl font-semibold text-gray-900 mr-2">{prompt.rating?.toFixed(1) || 0}</span>
+                  <div className="flex">
+                    {[...Array(5)].map((_, i) => (
+                      <span key={i}>
+                        {i < Math.floor(prompt.rating || 0) ? (
+                          <StarIconSolid className="h-4 w-4 text-yellow-400" />
+                        ) : i < Math.ceil(prompt.rating || 0) && (prompt.rating || 0) % 1 > 0 ? (
+                          <StarIconSolid className="h-4 w-4 text-yellow-400" />
+                        ) : (
+                          <StarIcon className="h-4 w-4 text-gray-300" />
+                        )}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+                <div className="mt-1 text-xs text-gray-500">Based on user feedback</div>
+              </div>
+            </div>
+            
+            {prompt.usageHistory && prompt.usageHistory.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-xs font-medium text-gray-700 mb-2">Usage Trend</h4>
+                <div className="h-24 bg-gray-50 rounded-lg p-2">
+                  {/* Simple bar chart visualization - would be replaced by a proper chart component */}
+                  <div className="flex h-full items-end space-x-1">
+                    {prompt.usageHistory.map((count, i) => {
+                      const maxCount = Math.max(...prompt.usageHistory);
+                      const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
+                      return (
+                        <div key={i} className="flex-1 flex flex-col items-center">
+                          <div
+                            className="w-full bg-primary-200 rounded-t"
+                            style={{ height: `${height}%` }}
+                          ></div>
+                          <div className="text-xs text-gray-500 mt-1">{i + 1}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+          
           {/* Prompt Footer */}
           <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
             <div className="flex flex-wrap justify-between items-center gap-2">
@@ -284,13 +347,6 @@ export default function PromptDetail() {
               </div>
               
               <div className="flex items-center space-x-4">
-                {prompt.usageCount !== undefined && (
-                  <span className="text-xs text-gray-500 flex items-center">
-                    <span className="font-medium">{prompt.usageCount || 0}</span>
-                    <span className="ml-1">uses</span>
-                  </span>
-                )}
-                
                 <Button 
                   variant="secondary" 
                   className="text-xs px-2.5 py-1 flex items-center"
@@ -303,12 +359,189 @@ export default function PromptDetail() {
           </div>
         </div>
         
-        {/* Related Prompts Section - Coming soon */}
+        {/* Version History */}
+        <div className="mt-10">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-bold text-gray-900">Version History</h2>
+            {prompt.versions && prompt.versions.length > 0 && (
+              <span className="text-sm text-gray-500">{prompt.versions.length} versions</span>
+            )}
+          </div>
+          
+          {!prompt.versions || prompt.versions.length === 0 ? (
+            <div className="bg-white shadow rounded-lg p-6 text-center">
+              <p className="text-gray-500">No previous versions available for this prompt.</p>
+            </div>
+          ) : (
+            <div className="bg-white shadow rounded-lg overflow-hidden">
+              <ul className="divide-y divide-gray-200">
+                {prompt.versions?.map((version, index) => (
+                  <li key={index} className="px-6 py-4 hover:bg-gray-50">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center">
+                          <span className="font-medium text-gray-900">Version {prompt.versions.length - index}</span>
+                          {index === 0 && (
+                            <span className="ml-2 px-2 py-0.5 text-xs rounded-full bg-primary-100 text-primary-800">
+                              Current
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1 text-sm text-gray-500">
+                          {formatDate(version.updatedAt || version.createdAt)}
+                        </p>
+                        {version.changeDescription && (
+                          <p className="mt-2 text-sm text-gray-700">{version.changeDescription}</p>
+                        )}
+                      </div>
+                      <button 
+                        className="text-xs px-2 py-1 border border-gray-300 rounded-md bg-white text-gray-700 hover:bg-gray-50"
+                      >
+                        View
+                      </button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+        
+        {/* User Feedback Section */}
+        <div className="mt-10">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">User Feedback</h2>
+          
+          {!prompt.feedback || prompt.feedback.length === 0 ? (
+            <div className="bg-white shadow rounded-lg p-6 text-center">
+              <p className="text-gray-500">No feedback has been provided for this prompt yet.</p>
+              <Button variant="primary" className="mt-4">
+                Add Feedback
+              </Button>
+            </div>
+          ) : (
+            <div className="bg-white shadow rounded-lg overflow-hidden">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 border-b border-gray-200">
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Average Rating</div>
+                  <div className="flex items-center">
+                    <span className="text-2xl font-semibold text-gray-900 mr-2">
+                      {(prompt.feedback.reduce((acc, item) => acc + item.rating, 0) / prompt.feedback.length).toFixed(1)}
+                    </span>
+                    <div className="flex">
+                      {[...Array(5)].map((_, i) => {
+                        const avgRating = prompt.feedback.reduce((acc, item) => acc + item.rating, 0) / prompt.feedback.length;
+                        return (
+                          <span key={i}>
+                            {i < Math.floor(avgRating) ? (
+                              <StarIconSolid className="h-5 w-5 text-yellow-400" />
+                            ) : i < Math.ceil(avgRating) && avgRating % 1 > 0 ? (
+                              <StarIconSolid className="h-5 w-5 text-yellow-400" />
+                            ) : (
+                              <StarIcon className="h-5 w-5 text-gray-300" />
+                            )}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <div className="mt-1 text-xs text-gray-500">From {prompt.feedback.length} ratings</div>
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Success Reports</div>
+                  <div className="text-xl font-semibold text-gray-900">
+                    {prompt.feedback.filter(item => item.successful).length} / {prompt.feedback.length}
+                  </div>
+                  <div className="mt-1 text-xs text-gray-500">
+                    {Math.round((prompt.feedback.filter(item => item.successful).length / prompt.feedback.length) * 100)}% success rate
+                  </div>
+                </div>
+                
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <div className="text-xs text-gray-500 mb-1">Most Common Use Case</div>
+                  <div className="text-xl font-semibold text-gray-900">
+                    {prompt.feedback
+                      .map(item => item.useCase)
+                      .reduce((acc, useCase) => {
+                        acc[useCase] = (acc[useCase] || 0) + 1;
+                        return acc;
+                      }, {})
+                      // Get the most common use case
+                      .sort((a, b) => Object.values(b)[0] - Object.values(a)[0])[0]
+                      ? Object.keys(prompt.feedback
+                          .map(item => item.useCase)
+                          .reduce((acc, useCase) => {
+                            acc[useCase] = (acc[useCase] || 0) + 1;
+                            return acc;
+                          }, {})
+                          .sort((a, b) => b - a)[0])
+                      : 'General'
+                    }
+                  </div>
+                  <div className="mt-1 text-xs text-gray-500">Based on user reports</div>
+                </div>
+              </div>
+              
+              <ul className="divide-y divide-gray-200">
+                {prompt.feedback?.slice(0, 3).map((item, index) => (
+                  <li key={index} className="px-6 py-4">
+                    <div className="flex items-start">
+                      <div className="flex-shrink-0">
+                        <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
+                          <span className="text-gray-500 font-medium">
+                            {item.userName?.charAt(0) || 'U'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="ml-4 flex-1">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium text-gray-900">{item.userName || 'Anonymous User'}</h4>
+                            <div className="flex items-center mt-1">
+                              {[...Array(5)].map((_, i) => (
+                                <StarIconSolid 
+                                  key={i} 
+                                  className={`h-4 w-4 ${i < item.rating ? 'text-yellow-400' : 'text-gray-300'}`} 
+                                />
+                              ))}
+                              <span className="ml-2 text-xs text-gray-500">{formatDate(item.date)}</span>
+                            </div>
+                          </div>
+                          <span className={`px-2 py-1 text-xs rounded-full ${
+                            item.successful 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {item.successful ? 'Successful' : 'Unsuccessful'}
+                          </span>
+                        </div>
+                        <p className="mt-2 text-sm text-gray-700">{item.comment}</p>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              
+              {prompt.feedback?.length > 3 && (
+                <div className="px-6 py-4 border-t border-gray-200 text-center">
+                  <button className="text-primary-600 hover:text-primary-700 font-medium">
+                    View All {prompt.feedback.length} Reviews
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Related Prompts Section */}
         <div className="mt-10 mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Related Prompts</h2>
-          <p className="text-gray-500 text-sm mt-1">
-            This feature is coming soon. Check back later for related prompts.
-          </p>
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Related Prompts</h2>
+          
+          <div className="bg-white shadow rounded-lg p-6 text-center">
+            <p className="text-gray-500">
+              This feature is coming soon. Check back later for related prompts based on tags and usage patterns.
+            </p>
+          </div>
         </div>
       </div>
     </Layout>

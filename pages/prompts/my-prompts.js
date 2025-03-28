@@ -7,8 +7,8 @@ import PromptCard from '../../components/PromptCard';
 import Button from '../../components/Button';
 import AdvancedSearch from '../../components/AdvancedSearch';
 import { 
-  ViewListIcon, 
-  ViewGridIcon, 
+  Bars4Icon as ViewListIcon, 
+  Squares2X2Icon as ViewGridIcon, 
   AdjustmentsHorizontalIcon,
   PlusIcon
 } from '@heroicons/react/24/outline';
