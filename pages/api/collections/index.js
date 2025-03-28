@@ -37,9 +37,9 @@ function addCollection(req, res) {
       return res.status(400).json({ errors: validation.errors });
     }
     
-    // Add user information from the session
-    const userId = req.session?.sub;
-    const userName = req.session?.name || 'Anonymous';
+    // Add user information from the session (NextAuth)
+    const userId = req.session?.user?.id;
+    const userName = req.session?.user?.name || 'Anonymous';
     
     // Create the collection with user information
     const newCollection = createCollection({ 

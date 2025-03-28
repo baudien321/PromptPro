@@ -54,7 +54,8 @@ function updatePromptHandler(req, res, id) {
     }
     
     // Check if the user is the owner of the prompt
-    const userId = req.session?.sub;
+    // Get the user ID from the session (req.session for custom auth or req.user.id for NextAuth)
+    const userId = req.session?.user?.id;
     if (existingPrompt.userId && existingPrompt.userId !== userId) {
       return res.status(403).json({ message: 'You are not authorized to update this prompt' });
     }
@@ -79,7 +80,8 @@ function deletePromptHandler(req, res, id) {
     }
     
     // Check if the user is the owner of the prompt
-    const userId = req.session?.sub;
+    // Get the user ID from the session (req.session for custom auth or req.user.id for NextAuth)
+    const userId = req.session?.user?.id;
     if (existingPrompt.userId && existingPrompt.userId !== userId) {
       return res.status(403).json({ message: 'You are not authorized to delete this prompt' });
     }

@@ -75,12 +75,11 @@ const Navbar = () => {
                     </div>
                   </div>
                 ) : (
-                  <button
-                    onClick={() => signIn("google")}
-                    className="ml-4 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-                  >
-                    Sign in
-                  </button>
+                  <Link href="/auth/signin">
+                    <span className="ml-4 px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 cursor-pointer">
+                      Sign in
+                    </span>
+                  </Link>
                 )}
               </>
             )}
@@ -88,12 +87,11 @@ const Navbar = () => {
           
           <div className="sm:hidden flex items-center">
             {!loading && !session && (
-              <button
-                onClick={() => signIn("google")}
-                className="mr-2 px-3 py-1 border border-transparent rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700"
-              >
-                Sign in
-              </button>
+              <Link href="/auth/signin">
+                <span className="mr-2 px-3 py-1 border border-transparent rounded-md text-sm font-medium text-white bg-primary-600 hover:bg-primary-700 cursor-pointer">
+                  Sign in
+                </span>
+              </Link>
             )}
             <button
               onClick={toggleMenu}
