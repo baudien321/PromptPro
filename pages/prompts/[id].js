@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import Layout from '../../components/Layout';
 import Button from '../../components/Button';
+import StarRating from '../../components/StarRating';
+import SuccessToggle from '../../components/SuccessToggle';
+import UsageCounter from '../../components/UsageCounter';
 import { formatDate, copyToClipboard } from '../../lib/utils';
 
 import {
@@ -29,6 +32,7 @@ export default function PromptDetail() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   useEffect(() => {
     const fetchPrompt = async () => {
@@ -63,9 +67,79 @@ export default function PromptDetail() {
     try {
       await copyToClipboard(prompt.content);
       setCopied(true);
+      
+      // Increment usage count via API
+      try {
+        const response = await fetch(`/api/prompts/${id}/increment-usage`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        if (response.ok) {
+          const updatedPrompt = await response.json();
+          setPrompt(updatedPrompt);
+        }
+      } catch (err) {
+        console.error('Failed to increment usage count:', err);
+      }
+      
       setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
+    }
+  };
+  
+  const handleRatingChange = async (newRating) => {
+    if (isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/prompts/${id}/update-rating`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ rating: newRating }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update rating');
+      }
+      
+      const updatedPrompt = await response.json();
+      setPrompt(updatedPrompt);
+    } catch (error) {
+      console.error('Error updating rating:', error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  const handleSuccessToggle = async (isSuccess) => {
+    if (isSaving) return;
+    
+    setIsSaving(true);
+    try {
+      const response = await fetch(`/api/prompts/${id}/update-success`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ isSuccess }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update success status');
+      }
+      
+      const updatedPrompt = await response.json();
+      setPrompt(updatedPrompt);
+    } catch (error) {
+      console.error('Error updating success status:', error);
+    } finally {
+      setIsSaving(false);
     }
   };
   
@@ -282,35 +356,40 @@ export default function PromptDetail() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="text-xs text-gray-500 mb-1">Usage Count</div>
-                <div className="text-xl font-semibold text-gray-900">{prompt.usageCount || 0}</div>
-                <div className="mt-1 text-xs text-gray-500">Number of times this prompt has been used</div>
+                <UsageCounter 
+                  count={prompt.usageCount || 0} 
+                  size="lg" 
+                  className="mt-1"
+                />
+                <div className="mt-2 text-xs text-gray-500">Number of times this prompt has been used</div>
               </div>
               
               <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="text-xs text-gray-500 mb-1">Success Rate</div>
-                <div className="text-xl font-semibold text-gray-900">{prompt.successRate || 0}%</div>
-                <div className="mt-1 text-xs text-gray-500">Percentage of successful outcomes</div>
-              </div>
-              
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="text-xs text-gray-500 mb-1">Average Rating</div>
-                <div className="flex items-center">
-                  <span className="text-xl font-semibold text-gray-900 mr-2">{prompt.rating?.toFixed(1) || 0}</span>
-                  <div className="flex">
-                    {[...Array(5)].map((_, i) => (
-                      <span key={i}>
-                        {i < Math.floor(prompt.rating || 0) ? (
-                          <StarIconSolid className="h-4 w-4 text-yellow-400" />
-                        ) : i < Math.ceil(prompt.rating || 0) && (prompt.rating || 0) % 1 > 0 ? (
-                          <StarIconSolid className="h-4 w-4 text-yellow-400" />
-                        ) : (
-                          <StarIcon className="h-4 w-4 text-gray-300" />
-                        )}
-                      </span>
-                    ))}
-                  </div>
+                <div className="text-xs text-gray-500 mb-1">Success Status</div>
+                <SuccessToggle 
+                  isSuccess={prompt.isSuccess} 
+                  interactive={!!session} 
+                  onChange={handleSuccessToggle}
+                  size="lg"
+                  className="mt-1" 
+                />
+                <div className="mt-2 text-xs text-gray-500">
+                  {prompt.successRate ? `${prompt.successRate}% success rate` : 'No feedback yet'}
                 </div>
-                <div className="mt-1 text-xs text-gray-500">Based on user feedback</div>
+              </div>
+              
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="text-xs text-gray-500 mb-1">Your Rating</div>
+                <StarRating 
+                  rating={prompt.rating || 0} 
+                  interactive={!!session} 
+                  onChange={handleRatingChange}
+                  size="lg"
+                  className="mt-1" 
+                />
+                <div className="mt-2 text-xs text-gray-500">
+                  {prompt.rating ? `${prompt.rating.toFixed(1)} average rating` : 'No ratings yet'}
+                </div>
               </div>
             </div>
             

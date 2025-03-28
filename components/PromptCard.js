@@ -4,14 +4,14 @@ import {
   ClipboardIcon as ClipboardCopyIcon, 
   PencilIcon, 
   TrashIcon,
-  StarIcon,
-  EyeIcon,
   ChartBarIcon
 } from '@heroicons/react/24/outline';
-import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 import { formatDate, truncateText, copyToClipboard } from '../lib/utils';
 import { useSession } from 'next-auth/react';
 import Button from './Button';
+import StarRating from './StarRating';
+import UsageCounter from './UsageCounter';
+import SuccessToggle from './SuccessToggle';
 
 const PromptCard = ({ prompt, onDelete, showActions = true }) => {
   const [isCopied, setIsCopied] = useState(false);
@@ -26,6 +26,15 @@ const PromptCard = ({ prompt, onDelete, showActions = true }) => {
     if (success) {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
+      
+      // Increment usage count
+      try {
+        await fetch(`/api/prompts/${prompt.id}/increment-usage`, {
+          method: 'POST',
+        });
+      } catch (error) {
+        console.error('Error incrementing usage count:', error);
+      }
     }
   };
   
@@ -112,33 +121,34 @@ const PromptCard = ({ prompt, onDelete, showActions = true }) => {
         </div>
       </div>
       
-      <div className="mt-3 flex items-center space-x-4 text-sm text-gray-600">
+      <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-gray-600">
+        {/* Rating component */}
         {prompt.rating !== undefined && (
-          <div className="flex items-center">
-            <div className="flex items-center">
-              {[1, 2, 3, 4, 5].map((rating) => (
-                <span key={rating}>
-                  {rating <= Math.floor(prompt.rating) ? (
-                    <StarIconSolid className="h-4 w-4 text-yellow-400" />
-                  ) : rating <= prompt.rating + 0.5 ? (
-                    <StarIconSolid className="h-4 w-4 text-yellow-400" />
-                  ) : (
-                    <StarIcon className="h-4 w-4 text-gray-300" />
-                  )}
-                </span>
-              ))}
-            </div>
-            <span className="ml-1">{prompt.rating?.toFixed(1) || 0}</span>
-          </div>
+          <StarRating
+            rating={prompt.rating || 0}
+            size="sm"
+            interactive={false}
+          />
         )}
         
+        {/* Usage counter */}
         {prompt.usageCount !== undefined && (
-          <div className="flex items-center">
-            <EyeIcon className="h-4 w-4 mr-1 text-gray-400" />
-            <span>{prompt.usageCount || 0} uses</span>
-          </div>
+          <UsageCounter
+            count={prompt.usageCount || 0}
+            size="sm"
+          />
         )}
         
+        {/* Success toggle/indicator */}
+        {prompt.isSuccess !== undefined && (
+          <SuccessToggle
+            isSuccess={prompt.isSuccess}
+            size="sm"
+            interactive={false}
+          />
+        )}
+        
+        {/* Success rate (if available) */}
         {prompt.successRate !== undefined && (
           <div className="flex items-center">
             <ChartBarIcon className="h-4 w-4 mr-1 text-gray-400" />
