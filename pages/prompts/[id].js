@@ -196,7 +196,7 @@ export default function PromptDetail() {
     return (
       <div className="flex items-center">
         {[...Array(5)].map((_, i) => (
-          <span key={i}>
+          <span key={`star-${prompt.id}-${i}`}>
             {i < Math.round(rating) ? (
               <StarIconSolid className="h-5 w-5 text-yellow-400" />
             ) : (
@@ -429,7 +429,7 @@ export default function PromptDetail() {
                       const maxCount = Math.max(...prompt.usageHistory);
                       const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
                       return (
-                        <div key={i} className="flex-1 flex flex-col items-center">
+                        <div key={`usage-history-${prompt.id}-${i}`} className="flex-1 flex flex-col items-center">
                           <div
                             className="w-full bg-primary-200 rounded-t"
                             style={{ height: `${height}%` }}
@@ -486,7 +486,7 @@ export default function PromptDetail() {
             <div className="bg-white shadow rounded-lg overflow-hidden">
               <ul className="divide-y divide-gray-200">
                 {prompt.versions?.map((version, index) => (
-                  <li key={index} className="px-6 py-4 hover:bg-gray-50">
+                  <li key={`version-${prompt.id}-${version.id || index}`} className="px-6 py-4 hover:bg-gray-50">
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center">
@@ -541,7 +541,7 @@ export default function PromptDetail() {
                       {[...Array(5)].map((_, i) => {
                         const avgRating = prompt.feedback.reduce((acc, item) => acc + item.rating, 0) / prompt.feedback.length;
                         return (
-                          <span key={i}>
+                          <span key={`avg-star-${prompt.id}-${i}`}>
                             {i < Math.floor(avgRating) ? (
                               <StarIconSolid className="h-5 w-5 text-yellow-400" />
                             ) : i < Math.ceil(avgRating) && avgRating % 1 > 0 ? (
@@ -594,7 +594,7 @@ export default function PromptDetail() {
               
               <ul className="divide-y divide-gray-200">
                 {prompt.feedback?.slice(0, 3).map((item, index) => (
-                  <li key={index} className="px-6 py-4">
+                  <li key={`feedback-${prompt.id}-${item.id || index}`} className="px-6 py-4">
                     <div className="flex items-start">
                       <div className="flex-shrink-0">
                         <div className="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center">
@@ -610,7 +610,7 @@ export default function PromptDetail() {
                             <div className="flex items-center mt-1">
                               {[...Array(5)].map((_, i) => (
                                 <StarIconSolid 
-                                  key={i} 
+                                  key={`feedback-star-${prompt.id}-${index}-${i}`} 
                                   className={`h-4 w-4 ${i < item.rating ? 'text-yellow-400' : 'text-gray-300'}`} 
                                 />
                               ))}
