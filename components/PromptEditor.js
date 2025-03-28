@@ -1,90 +1,116 @@
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/router';
+import { useSession } from 'next-auth/react';
 import Button from './Button';
+import { 
+  TrashIcon, 
+  PlusCircleIcon, 
+  BeakerIcon, 
+  LightBulbIcon,
+  ChatBubbleBottomCenterTextIcon
+} from '@heroicons/react/24/outline';
 
-const PromptEditor = ({ initialData = {}, onSubmit, isEditing = false }) => {
+const AI_PLATFORMS = [
+  { id: 'chatgpt', name: 'ChatGPT', icon: <ChatBubbleBottomCenterTextIcon className="h-5 w-5" /> },
+  { id: 'midjourney', name: 'Midjourney', icon: <LightBulbIcon className="h-5 w-5" /> },
+  { id: 'claude', name: 'Claude', icon: <BeakerIcon className="h-5 w-5" /> },
+  { id: 'stable-diffusion', name: 'Stable Diffusion', icon: <LightBulbIcon className="h-5 w-5" /> },
+  { id: 'gpt4', name: 'GPT-4', icon: <ChatBubbleBottomCenterTextIcon className="h-5 w-5" /> },
+  { id: 'dalle', name: 'DALL-E', icon: <LightBulbIcon className="h-5 w-5" /> },
+  { id: 'bard', name: 'Bard', icon: <BeakerIcon className="h-5 w-5" /> },
+  { id: 'other', name: 'Other', icon: <ChatBubbleBottomCenterTextIcon className="h-5 w-5" /> },
+];
+
+const VISIBILITY_OPTIONS = [
+  { id: 'public', name: 'Public - Anyone can view' },
+  { id: 'private', name: 'Private - Only you can view' },
+  { id: 'unlisted', name: 'Unlisted - Anyone with the link can view' },
+];
+
+export default function PromptEditor({ existingPrompt = null, onSubmit, isLoading }) {
+  const router = useRouter();
+  const { data: session } = useSession();
+  
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     description: '',
-    tags: '',
-    aiPlatform: 'ChatGPT',
+    tags: [],
+    aiPlatform: 'chatgpt',
     visibility: 'private',
-    rating: 0,
-    usageCount: 0,
-    successRate: 0,
-    ...initialData,
-    tags: initialData.tags ? initialData.tags.join(', ') : '',
+    currentTag: ''
   });
   
   const [errors, setErrors] = useState({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  useEffect(() => {
+    if (existingPrompt) {
+      setFormData({
+        title: existingPrompt.title || '',
+        content: existingPrompt.content || '',
+        description: existingPrompt.description || '',
+        tags: existingPrompt.tags || [],
+        aiPlatform: existingPrompt.aiPlatform || 'chatgpt',
+        visibility: existingPrompt.visibility || 'private',
+        currentTag: ''
+      });
+    }
+  }, [existingPrompt]);
   
   const handleChange = (e) => {
-    const { name, value, type } = e.target;
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
     
-    // Handle different input types appropriately
-    let processedValue = value;
-    if (type === 'number') {
-      // For number inputs, store as numbers but prevent NaN
-      processedValue = value === '' ? '' : type === 'number' && name === 'rating' 
-        ? parseFloat(value) 
-        : parseInt(value, 10);
+    // Clear error for this field if it exists
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+  };
+  
+  const handleTagKeyDown = (e) => {
+    if (e.key === 'Enter' && formData.currentTag.trim()) {
+      e.preventDefault();
+      addTag();
+    }
+  };
+  
+  const addTag = () => {
+    if (!formData.currentTag.trim()) return;
+    
+    // Don't add duplicate tags
+    if (formData.tags.includes(formData.currentTag.trim().toLowerCase())) {
+      setFormData(prev => ({ ...prev, currentTag: '' }));
+      return;
     }
     
     setFormData(prev => ({
       ...prev,
-      [name]: processedValue
+      tags: [...prev.tags, prev.currentTag.trim().toLowerCase()],
+      currentTag: ''
     }));
-    
-    // Clear error for this field when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: undefined
-      }));
-    }
+  };
+  
+  const removeTag = (tagToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      tags: prev.tags.filter(tag => tag !== tagToRemove)
+    }));
   };
   
   const validateForm = () => {
     const newErrors = {};
     
-    // Required fields validation
     if (!formData.title.trim()) {
       newErrors.title = 'Title is required';
-    } else if (formData.title.length < 3) {
-      newErrors.title = 'Title must be at least 3 characters';
     }
     
     if (!formData.content.trim()) {
-      newErrors.content = 'Content is required';
-    } else if (formData.content.length < 10) {
-      newErrors.content = 'Content must be at least 10 characters';
-    }
-    
-    // Optional fields validation
-    if (formData.description && formData.description.length > 500) {
-      newErrors.description = 'Description must be less than 500 characters';
-    }
-    
-    // Numeric fields validation
-    if (formData.rating !== '' && (isNaN(parseFloat(formData.rating)) || 
-        parseFloat(formData.rating) < 0 || parseFloat(formData.rating) > 5)) {
-      newErrors.rating = 'Rating must be between 0 and 5';
-    }
-    
-    if (formData.usageCount !== '' && (isNaN(parseInt(formData.usageCount, 10)) || 
-        parseInt(formData.usageCount, 10) < 0)) {
-      newErrors.usageCount = 'Usage count must be a non-negative number';
-    }
-    
-    if (formData.successRate !== '' && (isNaN(parseInt(formData.successRate, 10)) || 
-        parseInt(formData.successRate, 10) < 0 || parseInt(formData.successRate, 10) > 100)) {
-      newErrors.successRate = 'Success rate must be between 0 and 100';
-    }
-    
-    // Team visibility validation
-    if (formData.visibility === 'team' && !formData.teamId) {
-      newErrors.visibility = 'Team selection is required for team visibility';
+      newErrors.content = 'Prompt content is required';
     }
     
     setErrors(newErrors);
@@ -98,225 +124,226 @@ const PromptEditor = ({ initialData = {}, onSubmit, isEditing = false }) => {
       return;
     }
     
-    setIsSubmitting(true);
+    const promptData = {
+      title: formData.title,
+      content: formData.content,
+      description: formData.description,
+      tags: formData.tags,
+      aiPlatform: formData.aiPlatform,
+      visibility: formData.visibility,
+      userId: session?.user?.id
+    };
     
-    try {
-      // Process form data
-      const processedData = {
-        ...formData,
-        // Convert tags from comma-separated string to array
-        tags: formData.tags 
-          ? formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) 
-          : [],
-        // Convert numeric fields to numbers
-        rating: parseFloat(formData.rating) || 0,
-        usageCount: parseInt(formData.usageCount, 10) || 0,
-        successRate: parseInt(formData.successRate, 10) || 0,
-      };
-      
-      await onSubmit(processedData);
-    } catch (error) {
-      console.error('Error submitting form:', error);
-      setErrors(prev => ({
-        ...prev,
-        submit: 'An error occurred. Please try again.'
-      }));
-    } finally {
-      setIsSubmitting(false);
-    }
+    await onSubmit(promptData);
+  };
+  
+  const handleCancel = () => {
+    router.back();
   };
   
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div>
-        <label htmlFor="title" className="label">
-          Title <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          id="title"
-          name="title"
-          value={formData.title}
-          onChange={handleChange}
-          className={`input ${errors.title ? 'border-red-500' : ''}`}
-          placeholder="Enter a descriptive title"
-        />
-        {errors.title && (
-          <p className="mt-1 text-sm text-red-600">{errors.title}</p>
-        )}
-      </div>
-      
-      <div>
-        <label htmlFor="content" className="label">
-          Prompt Content <span className="text-red-500">*</span>
-        </label>
-        <textarea
-          id="content"
-          name="content"
-          value={formData.content}
-          onChange={handleChange}
-          rows={6}
-          className={`input ${errors.content ? 'border-red-500' : ''}`}
-          placeholder="Write your prompt here..."
-        />
-        {errors.content && (
-          <p className="mt-1 text-sm text-red-600">{errors.content}</p>
-        )}
-      </div>
-      
-      <div>
-        <label htmlFor="description" className="label">
-          Description
-        </label>
-        <textarea
-          id="description"
-          name="description"
-          value={formData.description}
-          onChange={handleChange}
-          rows={3}
-          className="input"
-          placeholder="Briefly describe what this prompt does..."
-        />
-        <p className="mt-1 text-sm text-gray-500">
-          A short description of what this prompt helps to accomplish.
-        </p>
-      </div>
-      
-      <div>
-        <label htmlFor="tags" className="label">
-          Tags <span className="text-gray-500">(comma-separated)</span>
-        </label>
-        <input
-          type="text"
-          id="tags"
-          name="tags"
-          value={formData.tags}
-          onChange={handleChange}
-          className="input"
-          placeholder="e.g., writing, creative, fiction"
-        />
-        <p className="mt-1 text-sm text-gray-500">
-          Add tags to help organize and find your prompts easier.
-        </p>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <label htmlFor="aiPlatform" className="label">
-            AI Platform
-          </label>
-          <select
-            id="aiPlatform"
-            name="aiPlatform"
-            value={formData.aiPlatform}
-            onChange={handleChange}
-            className="input"
-          >
-            <option value="ChatGPT">ChatGPT</option>
-            <option value="Claude">Claude</option>
-            <option value="DALL-E">DALL-E</option>
-            <option value="MidJourney">MidJourney</option>
-            <option value="Stable Diffusion">Stable Diffusion</option>
-            <option value="GPT-4">GPT-4</option>
-            <option value="Gemini">Gemini</option>
-            <option value="Other">Other</option>
-          </select>
-        </div>
-        
-        <div>
-          <label htmlFor="visibility" className="label">
-            Visibility
-          </label>
-          <select
-            id="visibility"
-            name="visibility"
-            value={formData.visibility}
-            onChange={handleChange}
-            className="input"
-          >
-            <option value="private">Private (Only you)</option>
-            <option value="public">Public (Everyone)</option>
-            <option value="team">Team (Selected members)</option>
-          </select>
-        </div>
-      </div>
-      
-      {isEditing && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <form onSubmit={handleSubmit} className="space-y-6 bg-white shadow sm:rounded-md sm:overflow-hidden">
+      <div className="px-4 py-5 sm:p-6">
+        <div className="space-y-6">
           <div>
-            <label htmlFor="rating" className="label">
-              Rating (1-5)
+            <label htmlFor="title" className="block text-sm font-medium text-gray-700">
+              Title <span className="text-red-500">*</span>
             </label>
-            <input
-              type="number"
-              id="rating"
-              name="rating"
-              min="0"
-              max="5"
-              step="0.1"
-              value={formData.rating}
-              onChange={handleChange}
-              className="input"
-            />
+            <div className="mt-1">
+              <input
+                type="text"
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                className={`block w-full rounded-md ${
+                  errors.title ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-primary-500 focus:border-primary-500'
+                } shadow-sm sm:text-sm`}
+                placeholder="Give your prompt a descriptive title"
+              />
+              {errors.title && (
+                <p className="mt-1 text-sm text-red-500">{errors.title}</p>
+              )}
+            </div>
           </div>
           
           <div>
-            <label htmlFor="usageCount" className="label">
-              Usage Count
+            <label htmlFor="content" className="block text-sm font-medium text-gray-700">
+              Prompt Content <span className="text-red-500">*</span>
             </label>
-            <input
-              type="number"
-              id="usageCount"
-              name="usageCount"
-              min="0"
-              value={formData.usageCount}
-              onChange={handleChange}
-              className="input"
-            />
+            <div className="mt-1">
+              <textarea
+                id="content"
+                name="content"
+                rows={5}
+                value={formData.content}
+                onChange={handleChange}
+                className={`block w-full rounded-md ${
+                  errors.content ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-primary-500 focus:border-primary-500'
+                } shadow-sm sm:text-sm`}
+                placeholder="Enter your prompt text here..."
+              />
+              {errors.content && (
+                <p className="mt-1 text-sm text-red-500">{errors.content}</p>
+              )}
+            </div>
+            <p className="mt-2 text-sm text-gray-500">
+              Write the exact text you would enter into the AI platform.
+            </p>
           </div>
           
           <div>
-            <label htmlFor="successRate" className="label">
-              Success Rate (%)
+            <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+              Description
             </label>
-            <input
-              type="number"
-              id="successRate"
-              name="successRate"
-              min="0"
-              max="100"
-              value={formData.successRate}
-              onChange={handleChange}
-              className="input"
-            />
+            <div className="mt-1">
+              <textarea
+                id="description"
+                name="description"
+                rows={3}
+                value={formData.description}
+                onChange={handleChange}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="Describe what this prompt does and how to use it effectively..."
+              />
+            </div>
+            <p className="mt-2 text-sm text-gray-500">
+              A clear description helps others understand how to use your prompt.
+            </p>
+          </div>
+          
+          <div>
+            <label htmlFor="tags" className="block text-sm font-medium text-gray-700">
+              Tags
+            </label>
+            <div className="mt-1 flex rounded-md shadow-sm">
+              <input
+                type="text"
+                id="currentTag"
+                name="currentTag"
+                value={formData.currentTag}
+                onChange={handleChange}
+                onKeyDown={handleTagKeyDown}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="Add tags and press Enter..."
+              />
+              <button
+                type="button"
+                onClick={addTag}
+                className="ml-3 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+              >
+                <PlusCircleIcon className="h-4 w-4 mr-1" />
+                Add
+              </button>
+            </div>
+            
+            {formData.tags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {formData.tags.map(tag => (
+                  <span
+                    key={tag}
+                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
+                  >
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => removeTag(tag)}
+                      className="ml-1 text-primary-500 hover:text-primary-700 focus:outline-none"
+                    >
+                      <TrashIcon className="h-3 w-3" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            
+            <p className="mt-2 text-sm text-gray-500">
+              Tags help users find your prompt. Examples: "copywriting", "story", "image", etc.
+            </p>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">
+              AI Platform
+            </label>
+            <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {AI_PLATFORMS.map(platform => (
+                <div
+                  key={platform.id}
+                  onClick={() => setFormData(prev => ({ ...prev, aiPlatform: platform.id }))}
+                  className={`
+                    flex items-center px-3 py-2 border rounded-md cursor-pointer
+                    ${formData.aiPlatform === platform.id 
+                      ? 'bg-primary-50 border-primary-500 ring-1 ring-primary-500' 
+                      : 'border-gray-300 hover:bg-gray-50'}
+                  `}
+                >
+                  <div className={`text-${formData.aiPlatform === platform.id ? 'primary' : 'gray'}-500 mr-2`}>
+                    {platform.icon}
+                  </div>
+                  <span className="text-sm font-medium">{platform.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <div className="pt-2">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="text-sm font-medium text-primary-600 hover:text-primary-900 focus:outline-none focus:underline"
+            >
+              {showAdvanced ? 'Hide Advanced Options' : 'Show Advanced Options'}
+            </button>
+            
+            {showAdvanced && (
+              <div className="mt-4 p-4 bg-gray-50 rounded-md border border-gray-200">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Visibility
+                    </label>
+                    <div className="mt-2 space-y-3">
+                      {VISIBILITY_OPTIONS.map(option => (
+                        <div key={option.id} className="flex items-center">
+                          <input
+                            id={`visibility-${option.id}`}
+                            name="visibility"
+                            type="radio"
+                            checked={formData.visibility === option.id}
+                            onChange={() => setFormData(prev => ({ ...prev, visibility: option.id }))}
+                            className="h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500"
+                          />
+                          <label htmlFor={`visibility-${option.id}`} className="ml-3 block text-sm font-medium text-gray-700">
+                            {option.name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
       
-      {errors.submit && (
-        <div className="bg-red-50 p-4 rounded-md">
-          <p className="text-sm text-red-700">{errors.submit}</p>
-        </div>
-      )}
-      
-      <div className="flex justify-end space-x-3">
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => window.history.back()}
+      <div className="px-4 py-3 bg-gray-50 text-right sm:px-6 flex justify-end space-x-3">
+        <Button 
+          type="button" 
+          variant="secondary" 
+          onClick={handleCancel}
         >
           Cancel
         </Button>
-        <Button
-          type="submit"
-          variant="primary"
-          isLoading={isSubmitting}
+        <Button 
+          type="submit" 
+          variant="primary" 
+          isLoading={isLoading}
         >
-          {isEditing ? 'Update Prompt' : 'Create Prompt'}
+          {existingPrompt ? 'Update Prompt' : 'Create Prompt'}
         </Button>
       </div>
     </form>
   );
-};
-
-export default PromptEditor;
+}

@@ -1,71 +1,86 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/router';
-import { useSession, signIn } from 'next-auth/react';
+import { useSession } from 'next-auth/react';
 import Layout from '../../components/Layout';
 import PromptEditor from '../../components/PromptEditor';
 
 export default function CreatePrompt() {
   const router = useRouter();
-  const { data: session, status } = useSession();
-  const loading = status === 'loading';
+  const { data: session, status } = useSession({
+    required: true,
+    onUnauthenticated() {
+      router.push('/auth/signin');
+    },
+  });
   
-  const handleSubmit = async (formData) => {
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  
+  const handleSubmit = async (promptData) => {
     try {
+      setIsSubmitting(true);
+      setError(null);
+      
       const response = await fetch('/api/prompts', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(promptData),
       });
       
       if (!response.ok) {
-        throw new Error('Failed to create prompt');
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create prompt');
       }
       
-      const data = await response.json();
-      router.push(`/prompts/${data.id}`);
+      const newPrompt = await response.json();
+      router.push(`/prompts/${newPrompt.id}`);
+      
     } catch (error) {
       console.error('Error creating prompt:', error);
-      throw error;
+      setError(error.message || 'An unexpected error occurred');
+    } finally {
+      setIsSubmitting(false);
     }
   };
   
-  // If authentication is still loading, show a loading message
-  if (loading) {
+  if (status === 'loading') {
     return (
-      <Layout title="Loading... - PromptPro">
-        <div className="max-w-3xl mx-auto text-center py-12">
-          <p className="text-lg text-gray-600">Loading...</p>
-        </div>
-      </Layout>
-    );
-  }
-  
-  // If user is not authenticated, show a sign-in message
-  if (!session) {
-    return (
-      <Layout title="Sign In Required - PromptPro">
-        <div className="max-w-3xl mx-auto text-center py-12">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Authentication Required</h1>
-          <p className="text-lg text-gray-600 mb-6">You need to be signed in to create prompts.</p>
-          <button
-            onClick={() => signIn('google')}
-            className="px-4 py-2 bg-primary-600 text-white rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
-          >
-            Sign in with Google
-          </button>
+      <Layout title="PromptPro - Create Prompt">
+        <div className="flex justify-center py-16">
+          <svg className="animate-spin h-8 w-8 text-primary-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
         </div>
       </Layout>
     );
   }
   
   return (
-    <Layout title="Create New Prompt - PromptPro">
-      <div className="max-w-3xl mx-auto">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Create New Prompt</h1>
+    <Layout title="PromptPro - Create Prompt">
+      <div className="max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">Create a New Prompt</h1>
         
-        <PromptEditor onSubmit={handleSubmit} />
+        {error && (
+          <div className="mb-6 p-4 rounded-md bg-red-50 text-red-800">
+            {error}
+          </div>
+        )}
+        
+        <PromptEditor onSubmit={handleSubmit} isLoading={isSubmitting} />
+        
+        <div className="mt-8 bg-yellow-50 border border-yellow-200 p-4 rounded-md">
+          <h3 className="text-lg font-medium text-yellow-800">Tips for effective prompts:</h3>
+          <ul className="mt-2 text-sm text-yellow-700 space-y-2 list-disc list-inside">
+            <li>Be specific and clear about what you want the AI to generate</li>
+            <li>Include contextual information that helps the AI understand the task</li>
+            <li>Break complex requests into smaller parts or steps</li>
+            <li>Specify the format, tone, or style for the AI's response</li>
+            <li>Test and iterate your prompts to refine the results</li>
+          </ul>
+        </div>
       </div>
     </Layout>
   );
