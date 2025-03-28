@@ -56,16 +56,20 @@ const Navbar = () => {
                 {session ? (
                   <div className="ml-3 relative flex items-center">
                     <div className="flex items-center space-x-2">
-                      {session.user.image ? (
-                        <img
-                          className="h-8 w-8 rounded-full"
-                          src={session.user.image}
-                          alt={session.user.name || "User profile"}
-                        />
-                      ) : (
-                        <UserCircleIcon className="h-8 w-8 text-gray-400" />
-                      )}
-                      <span className="text-sm font-medium text-gray-700">{session.user.name}</span>
+                      <Link href="/profile">
+                        <div className="flex items-center space-x-2 cursor-pointer">
+                          {session.user.image ? (
+                            <img
+                              className="h-8 w-8 rounded-full"
+                              src={session.user.image}
+                              alt={session.user.name || "User profile"}
+                            />
+                          ) : (
+                            <UserCircleIcon className="h-8 w-8 text-gray-400" />
+                          )}
+                          <span className="text-sm font-medium text-gray-700">{session.user.name}</span>
+                        </div>
+                      </Link>
                       <button
                         onClick={() => signOut()}
                         className="ml-2 px-3 py-1 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50"
@@ -139,18 +143,31 @@ const Navbar = () => {
             
             {session && (
               <div className="border-t border-gray-200 pt-4 mt-4">
-                <div className="flex items-center px-3 py-2">
-                  {session.user.image ? (
-                    <img
-                      className="h-8 w-8 rounded-full mr-2"
-                      src={session.user.image}
-                      alt={session.user.name || "User profile"}
-                    />
-                  ) : (
-                    <UserCircleIcon className="h-8 w-8 text-gray-400 mr-2" />
-                  )}
-                  <span className="text-sm font-medium text-gray-700">{session.user.name}</span>
-                </div>
+                <Link href="/profile">
+                  <div 
+                    className="flex items-center px-3 py-2 cursor-pointer hover:bg-gray-100 rounded-md"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    {session.user.image ? (
+                      <img
+                        className="h-8 w-8 rounded-full mr-2"
+                        src={session.user.image}
+                        alt={session.user.name || "User profile"}
+                      />
+                    ) : (
+                      <UserCircleIcon className="h-8 w-8 text-gray-400 mr-2" />
+                    )}
+                    <span className="text-sm font-medium text-gray-700">{session.user.name}</span>
+                  </div>
+                </Link>
+                <Link href="/profile">
+                  <span 
+                    className={`block px-3 py-2 rounded-md text-base font-medium text-gray-700 hover:bg-gray-100 cursor-pointer`}
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Profile
+                  </span>
+                </Link>
                 <button
                   onClick={() => {
                     signOut();
