@@ -40,13 +40,39 @@ export default function PromptDetail() {
       
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/prompts/${id}`);
+        setError(null);
+        
+        // Add retries to handle potential race condition with database initialization
+        let retries = 3;
+        let response;
+        let success = false;
+        
+        while (retries > 0 && !success) {
+          response = await fetch(`/api/prompts/${id}`);
+          
+          if (response.ok) {
+            success = true;
+            break;
+          }
+          
+          // If not found, wait a bit and retry - database might still be initializing
+          if (response.status === 404) {
+            retries--;
+            if (retries > 0) {
+              console.log(`Prompt not found, retrying... (${retries} attempts left)`);
+              await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
+            }
+          } else {
+            // For other errors, don't retry
+            break;
+          }
+        }
         
         if (!response.ok) {
           if (response.status === 404) {
             throw new Error('Prompt not found');
           }
-          throw new Error('Failed to fetch prompt details');
+          throw new Error(`Failed to fetch prompt details: ${response.status}`);
         }
         
         const data = await response.json();
