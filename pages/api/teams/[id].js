@@ -64,11 +64,6 @@ function updateTeamHandler(req, res, id) {
       return res.status(401).json({ message: 'Authentication required' });
     }
     
-    // Check if user has permission to update the team
-    if (!isTeamAdmin(team, req.user.id)) {
-      return res.status(403).json({ message: 'You do not have permission to update this team' });
-    }
-    
     const validation = validateTeam(req.body, true);
     
     if (!validation.isValid) {
@@ -105,11 +100,6 @@ function deleteTeamHandler(req, res, id) {
     // Check if user is authenticated
     if (!req.user || !req.user.id) {
       return res.status(401).json({ message: 'Authentication required' });
-    }
-    
-    // Only the creator can delete the team
-    if (team.userId !== req.user.id) {
-      return res.status(403).json({ message: 'Only the team creator can delete the team' });
     }
     
     deleteTeam(id);

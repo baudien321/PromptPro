@@ -1,0 +1,15 @@
+{
+  "/_app": "pages/_app.js",
+  "/_error": "pages/_error.js",
+  "/_document": "pages/_document.js",
+  "/": "pages/index.js",
+  "/api/prompts": "pages/api/prompts.js",
+  "/api/auth/[...nextauth]": "pages/api/auth/[...nextauth].js",
+  "/prompts/my-prompts": "pages/prompts/my-prompts.js",
+  "/api/prompts/user": "pages/api/prompts/user.js",
+  "/prompts/create": "pages/prompts/create.js",
+  "/api/collections": "pages/api/collections.js",
+  "/collections": "pages/collections.js",
+  "/teams": "pages/teams.js",
+  "/api/teams": "pages/api/teams.js"
+}

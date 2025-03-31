@@ -26,7 +26,14 @@ export default function EditPrompt() {
       
       try {
         setIsLoading(true);
-        const response = await fetch(`/api/prompts/${id}`);
+        const response = await fetch(`/api/prompts/${id}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+          },
+          credentials: 'include'
+        });
         
         if (!response.ok) {
           if (response.status === 404) {
@@ -36,6 +43,7 @@ export default function EditPrompt() {
         }
         
         const data = await response.json();
+        console.log('Fetched prompt for editing:', data);
         
         // Check if the user is the owner of this prompt
         if (session?.user?.id !== data.userId) {
@@ -69,6 +77,7 @@ export default function EditPrompt() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(promptData),
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -77,7 +86,8 @@ export default function EditPrompt() {
       }
       
       const updatedPrompt = await response.json();
-      router.push(`/prompts/${updatedPrompt.id}`);
+      // Use window.location for a full page reload
+      window.location.href = '/prompts/my-prompts?refresh=' + new Date().getTime();
       
     } catch (error) {
       console.error('Error updating prompt:', error);

@@ -16,17 +16,31 @@ async function handler(req, res) {
 // Protect POST, PUT, DELETE methods
 export default withAuthForMethods(handler);
 
-function getCollections(req, res) {
+async function getCollections(req, res) {
   try {
-    const collections = getAllCollections();
-    return res.status(200).json(collections);
+    // Add await since getAllCollections is now async
+    const collections = await getAllCollections();
+    
+    // Check if collections is undefined or null and provide a fallback
+    if (!collections) {
+      return res.status(200).json([]);
+    }
+    
+    // Map MongoDB _id to id for frontend compatibility
+    const mappedCollections = collections.map(collection => ({
+      id: collection._id.toString(),
+      ...collection,
+      _id: undefined // Remove _id to avoid duplication
+    }));
+    
+    return res.status(200).json(mappedCollections);
   } catch (error) {
     console.error('Error getting collections:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
-function addCollection(req, res) {
+async function addCollection(req, res) {
   try {
     const { name, description } = req.body;
     
@@ -41,8 +55,8 @@ function addCollection(req, res) {
     const userId = req.session?.user?.id;
     const userName = req.session?.user?.name || 'Anonymous';
     
-    // Create the collection with user information
-    const newCollection = createCollection({ 
+    // Add await since createCollection is now async
+    const newCollection = await createCollection({ 
       name, 
       description,
       userId,

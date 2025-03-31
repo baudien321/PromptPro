@@ -302,18 +302,24 @@ export default function PromptDetail() {
                 {isOwner && (
                   <div className="flex space-x-2">
                     <Link href={`/prompts/edit/${prompt.id}`}>
-                      <Button variant="secondary" className="py-1 px-2">
-                        <PencilIcon className="h-4 w-4" />
-                        <span className="sr-only">Edit</span>
+                      <Button variant="secondary" className="py-1.5 px-3 text-sm">
+                        <PencilIcon className="h-4 w-4 mr-1.5" />
+                        Edit
                       </Button>
                     </Link>
                     <Button 
                       variant={deleteConfirm ? "danger" : "secondary"} 
-                      className="py-1 px-2"
+                      className="py-1.5 px-3 text-sm"
                       onClick={handleDelete}
                     >
-                      {deleteConfirm ? 'Confirm' : <TrashIcon className="h-4 w-4" />}
-                      <span className="sr-only">Delete</span>
+                      {deleteConfirm ? (
+                        <>Confirm</>
+                      ) : (
+                        <>
+                          <TrashIcon className="h-4 w-4 mr-1.5" />
+                          Delete
+                        </>
+                      )}
                     </Button>
                   </div>
                 )}

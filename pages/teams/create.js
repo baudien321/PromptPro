@@ -22,13 +22,26 @@ export default function CreateTeam() {
     setIsSubmitting(true);
     setError(null);
     
+    // Ensure session and user ID are available
+    if (!session || !session.user || !session.user.id) {
+      setError('User session not found. Please sign in again.');
+      setIsSubmitting(false);
+      return;
+    }
+    
     try {
+      // Include the creator's ID in the data sent to the API
+      const payload = {
+        ...teamData,
+        userId: session.user.id, // Add the user ID here
+      };
+      
       const response = await fetch('/api/teams', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(teamData),
+        body: JSON.stringify(payload), // Send the payload with userId
       });
       
       if (!response.ok) {

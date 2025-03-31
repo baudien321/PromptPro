@@ -12,6 +12,20 @@ export default function Teams() {
   const [teams, setTeams] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  // Add success message when refreshing
+  useEffect(() => {
+    // Check if we have a refresh parameter, indicating a team was just modified
+    if (router.query.refresh) {
+      setSuccessMessage('Team successfully saved!');
+      // Clear the message after 5 seconds
+      const timer = setTimeout(() => {
+        setSuccessMessage('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [router.query.refresh]);
   
   // Fetch teams
   useEffect(() => {
@@ -40,27 +54,36 @@ export default function Teams() {
     };
     
     fetchTeams();
-  }, [status]);
+  }, [status, router.query.refresh]);
   
   // Handle delete team
   const handleDeleteTeam = async (teamId) => {
-    if (window.confirm('Are you sure you want to delete this team? This action cannot be undone.')) {
-      try {
-        const response = await fetch(`/api/teams/${teamId}`, {
-          method: 'DELETE',
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to delete team');
-        }
-        
-        // Remove the team from the state
-        setTeams(teams.filter(team => team.id !== teamId));
-        
-      } catch (error) {
-        console.error('Error deleting team:', error);
-        alert(error.message || 'Failed to delete team');
+    try {
+      const response = await fetch(`/api/teams/${teamId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to delete team');
       }
+      
+      // Remove the team from the state
+      setTeams(teams.filter(team => team.id !== teamId));
+      
+      // Show success message
+      setSuccessMessage('Team successfully deleted!');
+      // Clear the message after 5 seconds
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 5000);
+      
+    } catch (error) {
+      console.error('Error deleting team:', error);
+      alert(error.message || 'Failed to delete team');
     }
   };
   
@@ -73,6 +96,12 @@ export default function Teams() {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
+        {successMessage && (
+          <div className="bg-green-50 p-4 rounded-md mb-6 border border-green-200">
+            <p className="text-sm text-green-700">{successMessage}</p>
+          </div>
+        )}
+        
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Teams</h1>
           <Link href="/teams/create">
@@ -114,7 +143,7 @@ export default function Teams() {
               <TeamCard
                 key={team.id}
                 team={team}
-                isEditable={team.userId === session?.user?.id}
+                isEditable={true}
                 onDelete={() => handleDeleteTeam(team.id)}
               />
             ))}

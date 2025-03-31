@@ -1,5 +1,9 @@
 import { withAuth } from '../../../lib/auth';
-import { getAllTeams, getTeamsByUserId, createTeam } from '../../../lib/db';
+import {
+  getAllTeams,
+  getTeamsByUserId,
+  createTeam,
+} from '../../../lib/repositories/teamRepository';
 import { validateTeam } from '../../../models/team';
 
 /**
@@ -27,7 +31,7 @@ async function handler(req, res) {
  * If userId is provided, return teams for that user
  * Otherwise return all teams (admin only)
  */
-function getTeams(req, res) {
+async function getTeams(req, res) {
   const { userId } = req.query;
   
   try {
@@ -35,11 +39,11 @@ function getTeams(req, res) {
     
     // If userId is specified, get teams for that user
     if (userId) {
-      teams = getTeamsByUserId(userId);
+      teams = await getTeamsByUserId(userId);
     } 
     // Otherwise get all teams the current user is a part of
-    else if (req.user && req.user.id) {
-      teams = getTeamsByUserId(req.user.id);
+    else if (req.session?.sub) {
+      teams = await getTeamsByUserId(req.session.sub);
     } else {
       teams = []; // Return empty array if no user or userId provided
     }
@@ -54,7 +58,7 @@ function getTeams(req, res) {
 /**
  * Create a new team
  */
-function createTeamHandler(req, res) {
+async function createTeamHandler(req, res) {
   try {
     const validation = validateTeam(req.body);
     
@@ -63,25 +67,28 @@ function createTeamHandler(req, res) {
       return res.status(400).json({ message: errorMessages });
     }
     
-    // Check if user is authenticated
-    if (!req.user || !req.user.id) {
+    // Check if user is authenticated via req.session populated by withAuth
+    const userId = req.session?.sub; // Use req.session.sub (standard for getToken)
+    const userName = req.session?.name || req.session?.email || 'Unknown User'; // Get name/email
+    
+    if (!userId) {
       return res.status(401).json({ message: 'Authentication required' });
     }
     
     // Add the current user as the creator
     const teamData = {
       ...req.body,
-      userId: req.user.id,
+      userId: userId, // Use the userId from the session
       // Initialize with creator as the owner
       members: [{
-        userId: req.user.id,
-        name: req.user.name || req.user.email,
+        userId: userId,
+        name: userName,
         role: 'owner',
-        joinedAt: new Date().toISOString(),
+        joinedAt: new Date(),
       }]
     };
     
-    const team = createTeam(teamData);
+    const team = await createTeam(teamData);
     
     return res.status(201).json(team);
   } catch (error) {

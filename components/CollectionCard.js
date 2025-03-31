@@ -24,18 +24,20 @@ const CollectionCard = ({ collection, onDelete, showActions = true }) => {
         
         {showActions && isOwner && (
           <div className="flex space-x-2">
-            <Link href={`/collections/edit/${collection.id}`} className="text-gray-500 hover:text-primary-600 focus:outline-none" title="Edit collection">
-                <PencilIcon className="h-5 w-5" />
-                <span className="sr-only">Edit</span>
+            <Link href={`/collections/edit/${collection.id}`} 
+              className="flex items-center text-gray-600 hover:text-primary-600 focus:outline-none px-2 py-1 rounded-md hover:bg-gray-100" 
+              title="Edit collection">
+                <PencilIcon className="h-5 w-5 mr-1" />
+                <span className="text-sm">Edit</span>
             </Link>
             
             <button
               onClick={handleDelete}
-              className="text-gray-500 hover:text-red-600 focus:outline-none"
+              className="flex items-center text-gray-600 hover:text-red-600 focus:outline-none px-2 py-1 rounded-md hover:bg-gray-100"
               title="Delete collection"
             >
-              <TrashIcon className="h-5 w-5" />
-              <span className="sr-only">Delete</span>
+              <TrashIcon className="h-5 w-5 mr-1" />
+              <span className="text-sm">Delete</span>
             </button>
           </div>
         )}

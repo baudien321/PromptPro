@@ -15,6 +15,8 @@ export default function CreatePrompt() {
   
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [createdPrompt, setCreatedPrompt] = useState(null);
+  const [showSuccess, setShowSuccess] = useState(false);
   
   const handleSubmit = async (promptData) => {
     try {
@@ -27,6 +29,7 @@ export default function CreatePrompt() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(promptData),
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -35,7 +38,9 @@ export default function CreatePrompt() {
       }
       
       const newPrompt = await response.json();
-      router.push(`/prompts/${newPrompt.id}`);
+      console.log("Created prompt:", newPrompt);
+      setCreatedPrompt(newPrompt);
+      setShowSuccess(true);
       
     } catch (error) {
       console.error('Error creating prompt:', error);
@@ -53,6 +58,38 @@ export default function CreatePrompt() {
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
+        </div>
+      </Layout>
+    );
+  }
+  
+  if (showSuccess && createdPrompt) {
+    return (
+      <Layout title="PromptPro - Prompt Created">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-green-50 p-6 rounded-lg shadow-lg border border-green-200 mb-8">
+            <h1 className="text-2xl font-bold text-green-800 mb-4">Prompt Created Successfully!</h1>
+            <p className="text-green-700 mb-4">
+              Your prompt "{createdPrompt.title}" has been created and saved to the database.
+            </p>
+            <div className="flex space-x-4 mt-6">
+              <a 
+                href="/prompts/my-prompts" 
+                className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700"
+              >
+                Go to My Prompts
+              </a>
+              <button
+                onClick={() => {
+                  setShowSuccess(false);
+                  setCreatedPrompt(null);
+                }}
+                className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-md shadow-sm text-gray-700 bg-white hover:bg-gray-50"
+              >
+                Create Another Prompt
+              </button>
+            </div>
+          </div>
         </div>
       </Layout>
     );

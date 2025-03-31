@@ -1,41 +1,42 @@
-import { getPromptById, updatePrompt } from '../../../../lib/db';
-import { withAuth } from '../../../../lib/auth';
+import * as promptRepository from '../../../../lib/repositories/promptRepository';
 
 /**
  * API handler to increment the usage count of a prompt
  * This endpoint can be called when a prompt is copied or used
  */
-async function handler(req, res) {
-  // Only allow POST requests
+export default async function handler(req, res) {
+  // Only allow POST method for incrementing usage
   if (req.method !== 'POST') {
     return res.status(405).json({ message: 'Method not allowed' });
   }
   
-  const promptId = req.query.id;
+  const { id } = req.query;
+  
+  if (!id) {
+    return res.status(400).json({ message: 'Prompt ID is required' });
+  }
   
   try {
-    // Get current prompt data
-    const prompt = await getPromptById(promptId);
+    // Verify the prompt exists
+    const existingPrompt = await promptRepository.getPromptById(id);
     
-    if (!prompt) {
+    if (!existingPrompt) {
       return res.status(404).json({ message: 'Prompt not found' });
     }
     
     // Increment the usage count
-    const currentCount = prompt.usageCount || 0;
-    const updatedPrompt = await updatePrompt(promptId, {
-      ...prompt,
-      usageCount: currentCount + 1,
+    const updatedPrompt = await promptRepository.incrementUsageCount(id);
+    
+    if (!updatedPrompt) {
+      return res.status(500).json({ message: 'Failed to increment usage count' });
+    }
+    
+    return res.status(200).json({ 
+      message: 'Usage count incremented',
+      usageCount: updatedPrompt.usageCount 
     });
-    
-    return res.status(200).json(updatedPrompt);
-    
   } catch (error) {
     console.error('Error incrementing usage count:', error);
-    return res.status(500).json({ message: 'Failed to increment usage count' });
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
-
-// Make this endpoint available to public prompts
-// This way, non-logged-in users can also trigger usage count increments
-export default handler;

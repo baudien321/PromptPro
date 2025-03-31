@@ -131,9 +131,7 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
       description: formData.description.trim() || "", // Ensure description is never undefined
       tags: formData.tags || [],
       aiPlatform: formData.aiPlatform || "chatgpt",
-      visibility: formData.visibility || "private",
-      userId: session?.user?.id,
-      createdBy: session?.user?.name || "Anonymous"
+      visibility: formData.visibility || "private"
     };
     
     try {

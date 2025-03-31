@@ -29,45 +29,78 @@ export default function MyPrompts() {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
   const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'rating', 'usage'
   const [showFilters, setShowFilters] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  // Function to force reload data manually
+  const reloadPrompts = async () => {
+    if (status === 'loading' || !session) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Fetch user's prompts
+      if (!session.user || !session.user.id) {
+        console.error('User session is incomplete');
+        console.log('Session data:', session);
+        setError('User authentication error. Please try signing in again.');
+        setIsLoading(false);
+        return;
+      }
+      
+      console.log('Fetching prompts for user ID:', session.user.id);
+      console.log('Full session:', session);
+      
+      // Use a direct API endpoint instead of search
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/prompts/user?t=${timestamp}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        },
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch your prompts');
+      }
+      
+      const data = await response.json();
+      console.log('Reloaded prompts:', data);
+      console.log('Number of prompts found:', data.length);
+      
+      setUserPrompts(data);
+      setFilteredPrompts(data);
+      
+      // Apply initial sort
+      sortPrompts(data, sortBy);
+      
+    } catch (error) {
+      console.error('Error reloading prompts:', error);
+      setError('Failed to reload your prompts. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
   
   useEffect(() => {
-    const fetchUserPrompts = async () => {
-      if (status === 'loading' || !session) return;
-      
-      try {
-        setIsLoading(true);
-        
-        // Fetch user's prompts
-        // Make sure we have the user ID before making the request
-        if (!session.user || !session.user.id) {
-          console.error('User session is incomplete');
-          setError('User authentication error. Please try signing in again.');
-          setIsLoading(false);
-          return;
-        }
-        
-        const response = await fetch(`/api/search?userId=${session.user.id}&sortBy=createdAt&sortDirection=desc`);
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch your prompts');
-        }
-        
-        const data = await response.json();
-        setUserPrompts(data);
-        setFilteredPrompts(data);
-        
-        // Apply initial sort
-        sortPrompts(data, sortBy);
-        
-      } catch (error) {
-        console.error('Error fetching prompts:', error);
-        setError('Failed to load your prompts. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    
-    fetchUserPrompts();
+    // Check if we have a refresh parameter, indicating a prompt was just created or updated
+    if (router.query.refresh) {
+      setSuccessMessage('Prompt successfully saved!');
+      // Force reload data
+      reloadPrompts();
+      // Clear the message after 5 seconds
+      const timer = setTimeout(() => {
+        setSuccessMessage('');
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [router.query.refresh]);
+  
+  useEffect(() => {
+    reloadPrompts();
   }, [session, status]);
   
   const handleSearch = async (searchParams) => {
@@ -80,14 +113,24 @@ export default function MyPrompts() {
         throw new Error("User session is incomplete");
       }
       
+      // Add timestamp to prevent caching
+      const timestamp = new Date().getTime();
       const separator = searchParams ? '&' : '';
-      const response = await fetch(`/api/search?${searchParams}${separator}userId=${userId}`);
+      const response = await fetch(`/api/search?${searchParams}${separator}userId=${userId}&t=${timestamp}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
+        },
+        credentials: 'include'
+      });
       
       if (!response.ok) {
         throw new Error('Search failed');
       }
       
       const data = await response.json();
+      console.log('Search results:', data);
       setFilteredPrompts(data);
       
       // Apply current sort to new results
@@ -105,6 +148,10 @@ export default function MyPrompts() {
     try {
       const response = await fetch(`/api/prompts/${promptId}`, {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        credentials: 'include'
       });
       
       if (!response.ok) {
@@ -115,6 +162,13 @@ export default function MyPrompts() {
       const updatedPrompts = userPrompts.filter(p => p.id !== promptId);
       setUserPrompts(updatedPrompts);
       setFilteredPrompts(filteredPrompts.filter(p => p.id !== promptId));
+      
+      // Show success message
+      setSuccessMessage('Prompt successfully deleted!');
+      // Clear the message after 5 seconds
+      setTimeout(() => {
+        setSuccessMessage('');
+      }, 5000);
       
     } catch (error) {
       console.error('Error deleting prompt:', error);
@@ -163,14 +217,31 @@ export default function MyPrompts() {
   return (
     <Layout title="PromptPro - My Prompts">
       <div className="space-y-6">
+        {successMessage && (
+          <div className="bg-green-50 p-4 rounded-md border border-green-200">
+            <p className="text-sm text-green-700">{successMessage}</p>
+          </div>
+        )}
+        
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <h1 className="text-2xl font-bold text-gray-900">My Prompts</h1>
-          <Link href="/prompts/create">
-            <Button variant="primary" className="mt-3 md:mt-0">
-              <PlusIcon className="h-5 w-5 mr-1" />
-              Create New Prompt
-            </Button>
-          </Link>
+          <div className="flex space-x-2 mt-3 md:mt-0">
+            <button 
+              onClick={reloadPrompts}
+              className="flex items-center justify-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary-700 hover:bg-primary-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              Refresh
+            </button>
+            <Link href="/prompts/create">
+              <Button variant="primary" className="mt-0">
+                <PlusIcon className="h-5 w-5 mr-1" />
+                Create New Prompt
+              </Button>
+            </Link>
+          </div>
         </div>
         
         <div className="bg-white rounded-lg shadow p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">

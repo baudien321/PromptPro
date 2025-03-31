@@ -1,0 +1,1 @@
+{"_id":{"$oid":"67e8083cb52c0cb73eb277f7"},"name":"123","description":"","userId":"2","members":[{"userId":"2","name":"Bau tran","role":"owner","joinedAt":{"$date":{"$numberLong":"1743259708636"}}}],"createdAt":{"$date":{"$numberLong":"1743259708637"}},"updatedAt":{"$date":{"$numberLong":"1743259708637"}}}

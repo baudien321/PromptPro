@@ -106,10 +106,16 @@ export default function Home() {
       ) : (
         <div className="flex flex-col space-y-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-            <h1 className="text-3xl font-bold text-gray-900">Your AI Prompts</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Discover Prompts</h1>
             <Link href="/prompts/create" className="mt-3 md:mt-0">
               <Button variant="primary">Create New Prompt</Button>
             </Link>
+          </div>
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-4 mb-4">
+            <p className="text-blue-700 text-sm">
+              Browse all public prompts from the community. Visit <Link href="/prompts/my-prompts"><span className="font-medium text-blue-800 underline">My Prompts</span></Link> to see and manage your own prompts.
+            </p>
           </div>
           
           <div className="mb-4">

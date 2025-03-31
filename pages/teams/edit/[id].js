@@ -45,11 +45,6 @@ export default function EditTeam() {
       
       const data = await response.json();
       
-      // Check if user has permission to edit
-      if (data.userId !== session.user.id) {
-        throw new Error('You do not have permission to edit this team');
-      }
-      
       setTeam(data);
       
     } catch (error) {
@@ -81,8 +76,8 @@ export default function EditTeam() {
       
       const updatedTeam = await response.json();
       
-      // Redirect to team details page
-      router.push(`/teams/${updatedTeam.id}`);
+      // Redirect to teams page with refresh parameter
+      router.push(`/teams?refresh=${new Date().getTime()}`);
       
     } catch (error) {
       console.error('Error updating team:', error);

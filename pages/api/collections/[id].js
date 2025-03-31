@@ -20,22 +20,29 @@ async function handler(req, res) {
 // Apply authentication to PUT and DELETE methods
 export default withAuthForMethods(handler, ['PUT', 'DELETE']);
 
-function getCollection(req, res, id) {
+async function getCollection(req, res, id) {
   try {
-    const collection = getCollectionById(id);
+    const collection = await getCollectionById(id);
     
     if (!collection) {
       return res.status(404).json({ message: 'Collection not found' });
     }
     
-    return res.status(200).json(collection);
+    // Map MongoDB _id to id for frontend compatibility
+    const mappedCollection = {
+      id: collection._id.toString(),
+      ...collection,
+      _id: undefined // Remove _id to avoid duplication
+    };
+    
+    return res.status(200).json(mappedCollection);
   } catch (error) {
     console.error('Error getting collection:', error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
-function updateCollectionHandler(req, res, id) {
+async function updateCollectionHandler(req, res, id) {
   try {
     const { name, description } = req.body;
     
@@ -47,7 +54,7 @@ function updateCollectionHandler(req, res, id) {
     }
     
     // Check if collection exists
-    const existingCollection = getCollectionById(id);
+    const existingCollection = await getCollectionById(id);
     
     if (!existingCollection) {
       return res.status(404).json({ message: 'Collection not found' });
@@ -60,7 +67,7 @@ function updateCollectionHandler(req, res, id) {
     }
     
     // Update the collection
-    const updatedCollection = updateCollection(id, { name, description });
+    const updatedCollection = await updateCollection(id, { name, description });
     
     return res.status(200).json(updatedCollection);
   } catch (error) {
@@ -69,10 +76,10 @@ function updateCollectionHandler(req, res, id) {
   }
 }
 
-function deleteCollectionHandler(req, res, id) {
+async function deleteCollectionHandler(req, res, id) {
   try {
     // Check if collection exists
-    const existingCollection = getCollectionById(id);
+    const existingCollection = await getCollectionById(id);
     
     if (!existingCollection) {
       return res.status(404).json({ message: 'Collection not found' });
@@ -85,7 +92,7 @@ function deleteCollectionHandler(req, res, id) {
     }
     
     // Delete the collection
-    const success = deleteCollection(id);
+    const success = await deleteCollection(id);
     
     if (success) {
       return res.status(200).json({ message: 'Collection deleted successfully' });
