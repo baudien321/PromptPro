@@ -1,48 +1,61 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import Button from './Button';
-import { 
-  TrashIcon, 
-  PlusCircleIcon, 
-  BeakerIcon, 
+import TagSuggestions from './TagSuggestions';
+import {
+  TrashIcon,
+  PlusCircleIcon,
+  BeakerIcon,
   LightBulbIcon,
-  ChatBubbleBottomCenterTextIcon
+  ChatBubbleBottomCenterTextIcon,
+  TagIcon,
+  UsersIcon,
+  LockClosedIcon,
+  GlobeAltIcon,
 } from '@heroicons/react/24/outline';
 
 const AI_PLATFORMS = [
-  { id: 'chatgpt', name: 'ChatGPT', icon: <ChatBubbleBottomCenterTextIcon className="h-5 w-5" /> },
-  { id: 'midjourney', name: 'Midjourney', icon: <LightBulbIcon className="h-5 w-5" /> },
-  { id: 'claude', name: 'Claude', icon: <BeakerIcon className="h-5 w-5" /> },
-  { id: 'stable-diffusion', name: 'Stable Diffusion', icon: <LightBulbIcon className="h-5 w-5" /> },
-  { id: 'gpt4', name: 'GPT-4', icon: <ChatBubbleBottomCenterTextIcon className="h-5 w-5" /> },
-  { id: 'dalle', name: 'DALL-E', icon: <LightBulbIcon className="h-5 w-5" /> },
-  { id: 'bard', name: 'Bard', icon: <BeakerIcon className="h-5 w-5" /> },
-  { id: 'other', name: 'Other', icon: <ChatBubbleBottomCenterTextIcon className="h-5 w-5" /> },
+  { id: 'ChatGPT', name: 'ChatGPT', icon: <ChatBubbleBottomCenterTextIcon className="h-5 w-5" /> },
+  { id: 'MidJourney', name: 'Midjourney', icon: <LightBulbIcon className="h-5 w-5" /> },
+  { id: 'Claude', name: 'Claude', icon: <BeakerIcon className="h-5 w-5" /> },
+  { id: 'Gemini', name: 'Gemini', icon: <BeakerIcon className="h-5 w-5" /> },
+  { id: 'DALL-E', name: 'DALL-E', icon: <LightBulbIcon className="h-5 w-5" /> },
+  { id: 'Other', name: 'Other', icon: <ChatBubbleBottomCenterTextIcon className="h-5 w-5" /> },
 ];
 
 const VISIBILITY_OPTIONS = [
-  { id: 'public', name: 'Public - Anyone can view' },
-  { id: 'private', name: 'Private - Only you can view' },
-  { id: 'unlisted', name: 'Unlisted - Anyone with the link can view' },
+  { id: 'private', name: 'Private', description: 'Only you can view', icon: LockClosedIcon },
+  { id: 'team', name: 'Team', description: 'Visible to selected team members', icon: UsersIcon },
+  { id: 'public', name: 'Public', description: 'Anyone can view', icon: GlobeAltIcon },
 ];
 
 export default function PromptEditor({ existingPrompt = null, onSubmit, isLoading }) {
   const router = useRouter();
   const { data: session } = useSession();
+  const [userTeams, setUserTeams] = useState([]);
+  const [teamsLoading, setTeamsLoading] = useState(false);
   
   const [formData, setFormData] = useState({
     title: '',
     content: '',
     description: '',
     tags: [],
-    aiPlatform: 'chatgpt',
+    aiPlatform: 'ChatGPT',
     visibility: 'private',
+    teamId: null,
     currentTag: ''
   });
   
   const [errors, setErrors] = useState({});
   const [showAdvanced, setShowAdvanced] = useState(false);
+  
+  useEffect(() => {
+    if (session) {
+      fetchUserTeams();
+    }
+  }, [session]);
   
   useEffect(() => {
     if (existingPrompt) {
@@ -51,24 +64,45 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
         content: existingPrompt.content || '',
         description: existingPrompt.description || '',
         tags: existingPrompt.tags || [],
-        aiPlatform: existingPrompt.aiPlatform || 'chatgpt',
+        aiPlatform: existingPrompt.aiPlatform || 'ChatGPT',
         visibility: existingPrompt.visibility || 'private',
+        teamId: existingPrompt.teamId || null,
         currentTag: ''
       });
     }
   }, [existingPrompt]);
   
+  const fetchUserTeams = async () => {
+    setTeamsLoading(true);
+    try {
+      const response = await fetch('/api/teams');
+      if (!response.ok) throw new Error('Failed to fetch teams');
+      const data = await response.json();
+      setUserTeams(data || []);
+    } catch (error) {
+      console.error("Error fetching user teams:", error);
+      setErrors(prev => ({ ...prev, teams: 'Could not load your teams.' }));
+      setUserTeams([]);
+    } finally {
+      setTeamsLoading(false);
+    }
+  };
+  
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => {
+      const newState = { ...prev, [name]: value };
+      if (name === 'visibility' && value !== 'team') {
+        newState.teamId = null;
+      }
+      return newState;
+    });
     
-    // Clear error for this field if it exists
     if (errors[name]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[name];
-        return newErrors;
-      });
+      setErrors(prev => { const newErrors = { ...prev }; delete newErrors[name]; return newErrors; });
+    }
+    if (name === 'visibility' && value !== 'team' && errors.teamId) {
+      setErrors(prev => { const newErrors = { ...prev }; delete newErrors.teamId; return newErrors; });
     }
   };
   
@@ -81,13 +115,10 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
   
   const addTag = () => {
     if (!formData.currentTag.trim()) return;
-    
-    // Don't add duplicate tags
     if (formData.tags.includes(formData.currentTag.trim().toLowerCase())) {
       setFormData(prev => ({ ...prev, currentTag: '' }));
       return;
     }
-    
     setFormData(prev => ({
       ...prev,
       tags: [...prev.tags, prev.currentTag.trim().toLowerCase()],
@@ -105,12 +136,10 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
   const validateForm = () => {
     const newErrors = {};
     
-    if (!formData.title.trim()) {
-      newErrors.title = 'Title is required';
-    }
-    
-    if (!formData.content.trim()) {
-      newErrors.content = 'Prompt content is required';
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.content.trim()) newErrors.content = 'Prompt content is required';
+    if (formData.visibility === 'team' && !formData.teamId) {
+      newErrors.teamId = 'Please select a team';
     }
     
     setErrors(newErrors);
@@ -124,14 +153,14 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
       return;
     }
     
-    // Create a cleaned version of the prompt data (removing any unnecessary fields)
     const promptData = {
       title: formData.title.trim(),
       content: formData.content.trim(),
-      description: formData.description.trim() || "", // Ensure description is never undefined
+      description: formData.description.trim() || "",
       tags: formData.tags || [],
-      aiPlatform: formData.aiPlatform || "chatgpt",
-      visibility: formData.visibility || "private"
+      aiPlatform: formData.aiPlatform || "ChatGPT",
+      visibility: formData.visibility || "private",
+      teamId: formData.visibility === 'team' ? formData.teamId : null
     };
     
     try {
@@ -227,9 +256,15 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
           </div>
           
           <div>
-            <label htmlFor="tags" className="block text-sm font-medium text-gray-700">
-              Tags
-            </label>
+            <div className="flex items-center justify-between">
+              <label htmlFor="tags" className="block text-sm font-medium text-gray-700">
+                Tags
+              </label>
+              <Link href="/tags" className="text-xs text-primary-600 hover:text-primary-700 flex items-center">
+                <TagIcon className="h-3 w-3 mr-1" />
+                Manage Tags
+              </Link>
+            </div>
             <div className="mt-1 flex rounded-md shadow-sm">
               <input
                 type="text"
@@ -238,33 +273,34 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
                 value={formData.currentTag}
                 onChange={handleChange}
                 onKeyDown={handleTagKeyDown}
-                className="block w-full rounded-md border-gray-300 shadow-sm focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
-                placeholder="Add tags and press Enter..."
+                className="flex-1 block w-full rounded-none rounded-l-md border-gray-300 focus:ring-primary-500 focus:border-primary-500 sm:text-sm"
+                placeholder="Add relevant tags (e.g., marketing, coding)"
               />
               <button
                 type="button"
                 onClick={addTag}
-                className="ml-3 inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+                className="inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 bg-gray-50 text-gray-500 rounded-r-md hover:bg-gray-100"
               >
-                <PlusCircleIcon className="h-4 w-4 mr-1" />
-                Add
+                <PlusCircleIcon className="h-5 w-5" />
               </button>
             </div>
             
             {formData.tags.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {formData.tags.map(tag => (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {formData.tags.map((tag, index) => (
                   <span
-                    key={tag}
+                    key={`${tag}-${index}`}
                     className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-100 text-primary-800"
                   >
                     {tag}
                     <button
                       type="button"
                       onClick={() => removeTag(tag)}
-                      className="ml-1 text-primary-500 hover:text-primary-700 focus:outline-none"
+                      className="ml-1 flex-shrink-0 text-primary-400 hover:text-primary-600 focus:outline-none"
                     >
-                      <TrashIcon className="h-3 w-3" />
+                      <svg className="h-2 w-2" stroke="currentColor" fill="none" viewBox="0 0 8 8">
+                        <path strokeLinecap="round" strokeWidth="1.5" d="M1 1l6 6m0-6L1 7" />
+                      </svg>
                     </button>
                   </span>
                 ))}
@@ -280,23 +316,37 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
             <label className="block text-sm font-medium text-gray-700">
               AI Platform
             </label>
-            <div className="mt-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
               {AI_PLATFORMS.map(platform => (
-                <div
+                <label
                   key={platform.id}
-                  onClick={() => setFormData(prev => ({ ...prev, aiPlatform: platform.id }))}
-                  className={`
-                    flex items-center px-3 py-2 border rounded-md cursor-pointer
-                    ${formData.aiPlatform === platform.id 
-                      ? 'bg-primary-50 border-primary-500 ring-1 ring-primary-500' 
-                      : 'border-gray-300 hover:bg-gray-50'}
-                  `}
+                  htmlFor={`aiPlatform-${platform.id}`}
+                  className={`relative flex items-center space-x-3 rounded-lg border px-3 py-2 shadow-sm focus-within:ring-1 focus-within:ring-offset-2 cursor-pointer ${
+                    formData.aiPlatform === platform.id
+                      ? 'border-primary-500 ring-1 ring-primary-500'
+                      : 'border-gray-300'
+                  } hover:border-primary-400`}
                 >
-                  <div className={`text-${formData.aiPlatform === platform.id ? 'primary' : 'gray'}-500 mr-2`}>
+                  <input
+                    type="radio"
+                    id={`aiPlatform-${platform.id}`}
+                    name="aiPlatform"
+                    value={platform.id}
+                    checked={formData.aiPlatform === platform.id}
+                    onChange={handleChange}
+                    className="sr-only"
+                    aria-labelledby={`aiPlatform-${platform.id}-label`}
+                    aria-describedby={`aiPlatform-${platform.id}-description`}
+                  />
+                  <div className="flex-shrink-0">
                     {platform.icon}
                   </div>
-                  <span className="text-sm font-medium">{platform.name}</span>
-                </div>
+                  <div className="min-w-0 flex-1">
+                    <span id={`aiPlatform-${platform.id}-label`} className="block font-medium text-sm text-gray-900">
+                      {platform.name}
+                    </span>
+                  </div>
+                </label>
               ))}
             </div>
           </div>
@@ -305,57 +355,94 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
             <button
               type="button"
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="text-sm font-medium text-primary-600 hover:text-primary-900 focus:outline-none focus:underline"
+              className="text-sm font-medium text-primary-600 hover:text-primary-700"
             >
-              {showAdvanced ? 'Hide Advanced Options' : 'Show Advanced Options'}
+              {showAdvanced ? 'Hide' : 'Show'} Advanced Options
             </button>
             
             {showAdvanced && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-md border border-gray-200">
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Visibility
-                    </label>
-                    <div className="mt-2 space-y-3">
-                      {VISIBILITY_OPTIONS.map(option => (
-                        <div key={option.id} className="flex items-center">
-                          <input
-                            id={`visibility-${option.id}`}
-                            name="visibility"
-                            type="radio"
-                            checked={formData.visibility === option.id}
-                            onChange={() => setFormData(prev => ({ ...prev, visibility: option.id }))}
-                            className="h-4 w-4 text-primary-600 border-gray-300 focus:ring-primary-500"
-                          />
-                          <label htmlFor={`visibility-${option.id}`} className="ml-3 block text-sm font-medium text-gray-700">
-                            {option.name}
-                          </label>
+              <div className="space-y-6 border-t border-gray-200 pt-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Visibility
+                  </label>
+                  <fieldset className="mt-2">
+                    <legend className="sr-only">Prompt Visibility</legend>
+                    <div className="divide-y divide-gray-200 border rounded-md">
+                      {VISIBILITY_OPTIONS.map((option, optionIdx) => (
+                        <div key={option.id} className="relative flex items-start p-4">
+                          <div className="min-w-0 flex-1 text-sm">
+                            <label htmlFor={`visibility-${option.id}`} className="font-medium text-gray-700 select-none">
+                              {option.name}
+                            </label>
+                            <p id={`visibility-${option.id}-description`} className="text-gray-500">
+                              {option.description}
+                            </p>
+                          </div>
+                          <div className="ml-3 flex items-center h-5">
+                            <input
+                              id={`visibility-${option.id}`}
+                              name="visibility"
+                              type="radio"
+                              value={option.id}
+                              checked={formData.visibility === option.id}
+                              onChange={handleChange}
+                              className="focus:ring-primary-500 h-4 w-4 text-primary-600 border-gray-300"
+                              aria-describedby={`visibility-${option.id}-description`}
+                            />
+                          </div>
                         </div>
                       ))}
                     </div>
-                  </div>
+                  </fieldset>
                 </div>
+                
+                {formData.visibility === 'team' && (
+                  <div>
+                    <label htmlFor="teamId" className="block text-sm font-medium text-gray-700">
+                      Select Team <span className="text-red-500">*</span>
+                    </label>
+                    <div className="mt-1">
+                      {teamsLoading ? (
+                        <p className="text-sm text-gray-500 italic">Loading teams...</p>
+                      ) : errors.teams ? (
+                        <p className="text-sm text-red-500">{errors.teams}</p>
+                      ) : userTeams.length === 0 ? (
+                        <p className="text-sm text-gray-500 italic">You are not a member of any teams. <Link href="/teams/create" className="text-primary-600 hover:underline">Create one?</Link></p>
+                      ) : (
+                        <select
+                          id="teamId"
+                          name="teamId"
+                          value={formData.teamId || ''}
+                          onChange={handleChange}
+                          className={`block w-full rounded-md ${
+                            errors.teamId ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-primary-500 focus:border-primary-500'
+                          } shadow-sm sm:text-sm`}
+                        >
+                          <option value="" disabled>-- Select a Team --</option>
+                          {userTeams.map(team => (
+                            <option key={team.id} value={team.id}>{team.name}</option>
+                          ))}
+                        </select>
+                      )}
+                      {errors.teamId && (
+                        <p className="mt-1 text-sm text-red-500">{errors.teamId}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
       </div>
       
-      <div className="px-4 py-3 bg-gray-50 text-right sm:px-6 flex justify-end space-x-3">
-        <Button 
-          type="button" 
-          variant="secondary" 
-          onClick={handleCancel}
-        >
+      <div className="px-4 py-3 bg-gray-50 text-right sm:px-6">
+        <Button type="button" variant="secondary" onClick={handleCancel} className="mr-3">
           Cancel
         </Button>
-        <Button 
-          type="submit" 
-          variant="primary" 
-          isLoading={isLoading}
-        >
-          {existingPrompt ? 'Update Prompt' : 'Create Prompt'}
+        <Button type="submit" variant="primary" disabled={isLoading}>
+          {isLoading ? 'Saving...' : (existingPrompt ? 'Update Prompt' : 'Create Prompt')}
         </Button>
       </div>
     </form>

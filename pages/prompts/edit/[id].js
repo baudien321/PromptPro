@@ -22,15 +22,22 @@ export default function EditPrompt() {
   
   useEffect(() => {
     const fetchPrompt = async () => {
-      if (!id) return;
+      if (!id || !session?.user?.id) {
+        // Don't fetch if ID or session user ID is missing
+        setIsLoading(false);
+        return;
+      }
       
       try {
         setIsLoading(true);
+        setError(null);
+        setUnauthorized(false); // Reset unauthorized flag
+        
         const response = await fetch(`/api/prompts/${id}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'Cache-Control': 'no-cache'
+            'Cache-Control': 'no-cache' // Ensure fresh data
           },
           credentials: 'include'
         });
@@ -44,14 +51,23 @@ export default function EditPrompt() {
         
         const data = await response.json();
         console.log('Fetched prompt for editing:', data);
+        console.log('Session User ID:', session.user.id, typeof session.user.id);
+        console.log('Prompt User ID:', data.userId, typeof data.userId);
         
-        // Check if the user is the owner of this prompt
-        if (session?.user?.id !== data.userId) {
+        // --- Authorization Check ---
+        // Ensure both IDs are treated as strings for comparison
+        const sessionUserId = String(session.user.id);
+        const promptUserId = String(data.userId);
+        
+        if (sessionUserId !== promptUserId) {
+          console.error(`Authorization failed: Session ID (${sessionUserId}) !== Prompt User ID (${promptUserId})`);
           setUnauthorized(true);
-          return;
+          // Don't set the prompt state if unauthorized
+        } else {
+          console.log('Authorization successful on client-side.');
+          setPrompt(data);
         }
-        
-        setPrompt(data);
+        // --- End Authorization Check ---
         
       } catch (error) {
         console.error('Error fetching prompt:', error);
@@ -61,10 +77,18 @@ export default function EditPrompt() {
       }
     };
     
-    if (session) {
-      fetchPrompt();
+    // Only fetch when session is loaded and authenticated
+    if (status === 'authenticated') {
+        fetchPrompt();
+    } else if (status === 'loading') {
+        // Still loading session, do nothing yet
+        setIsLoading(true);
+    } else {
+        // Unauthenticated, handled by useSession hook redirect
+        setIsLoading(false);
     }
-  }, [id, session]);
+    
+  }, [id, session, status]); // Add status to dependencies
   
   const handleSubmit = async (promptData) => {
     try {
@@ -82,12 +106,18 @@ export default function EditPrompt() {
       
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to update prompt');
+        // Handle specific authorization error from API
+        if (response.status === 403) {
+            setError(errorData.message || 'You are not authorized to update this prompt.');
+        } else {
+            throw new Error(errorData.message || 'Failed to update prompt');
+        }
+      } else {
+        // Success
+        const updatedPrompt = await response.json();
+        // Use window.location for a full page reload to ensure data consistency
+        window.location.href = '/prompts/my-prompts?refresh=' + new Date().getTime();
       }
-      
-      const updatedPrompt = await response.json();
-      // Use window.location for a full page reload
-      window.location.href = '/prompts/my-prompts?refresh=' + new Date().getTime();
       
     } catch (error) {
       console.error('Error updating prompt:', error);
@@ -97,6 +127,7 @@ export default function EditPrompt() {
     }
   };
   
+  // Render loading state
   if (status === 'loading' || isLoading) {
     return (
       <Layout title="PromptPro - Edit Prompt">
@@ -110,14 +141,15 @@ export default function EditPrompt() {
     );
   }
   
+  // Render unauthorized state
   if (unauthorized) {
     return (
       <Layout title="PromptPro - Unauthorized">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-          <div className="bg-red-50 p-6 rounded-lg shadow-sm">
+          <div className="bg-red-50 p-6 rounded-lg shadow-sm border border-red-200">
             <h1 className="text-xl font-semibold text-red-800">Unauthorized</h1>
             <p className="mt-2 text-red-700">
-              You don't have permission to edit this prompt.
+              You don't have permission to edit this prompt. Only the creator can edit it.
             </p>
             <div className="mt-4">
               <button
@@ -133,13 +165,14 @@ export default function EditPrompt() {
     );
   }
   
+  // Render error state or if prompt is null after loading
   if (error || !prompt) {
     return (
       <Layout title="PromptPro - Error">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-          <div className="bg-red-50 p-6 rounded-lg shadow-sm">
+          <div className="bg-red-50 p-6 rounded-lg shadow-sm border border-red-200">
             <h1 className="text-xl font-semibold text-red-800">Error</h1>
-            <p className="mt-2 text-red-700">{error || 'Failed to load prompt'}</p>
+            <p className="mt-2 text-red-700">{error || 'Failed to load prompt data.'}</p>
             <div className="mt-4">
               <button
                 onClick={() => router.back()}
@@ -154,13 +187,14 @@ export default function EditPrompt() {
     );
   }
   
+  // Render the editor if everything is okay
   return (
     <Layout title={`PromptPro - Edit Prompt`}>
       <div className="max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">Edit Prompt</h1>
         
         {error && (
-          <div className="mb-6 p-4 rounded-md bg-red-50 text-red-800">
+          <div className="mb-6 p-4 rounded-md bg-red-50 text-red-800 border border-red-200">
             {error}
           </div>
         )}

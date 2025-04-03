@@ -1,6 +1,8 @@
-import { getPromptById, getCommentsByPromptId, createComment, updateComment, deleteComment } from '../../../../lib/db';
+import { getPromptById, getCommentsByPromptId, createComment, updateComment, deleteComment, getTeamById } from '../../../../lib/db';
 import { withAuth } from '../../../../lib/auth';
 import { validateComment } from '../../../../models/comment';
+import { canManagePrompt } from '../../../../lib/permissions';
+import { isTeamMember } from '../../../../models/team';
 
 /**
  * API handler for prompt comments
@@ -24,11 +26,28 @@ async function handler(req, res) {
     return res.status(404).json({ message: 'Prompt not found' });
   }
   
+  // Check permissions based on visibility
+  const userId = req.user.id;
+  
+  // For private prompts, only the owner can access comments
+  if (prompt.visibility === 'private' && String(prompt.userId) !== String(userId)) {
+    return res.status(403).json({ message: 'Not authorized to access comments for this prompt' });
+  }
+  
+  // For team prompts, check team membership
+  if (prompt.visibility === 'team' && prompt.teamId) {
+    const team = getTeamById(prompt.teamId);
+    
+    if (!team || !isTeamMember(team, userId)) {
+      return res.status(403).json({ message: 'Not authorized to access comments for this prompt' });
+    }
+  }
+  
   switch (req.method) {
     case 'GET':
       return getCommentsHandler(req, res, id);
     case 'POST':
-      return addCommentHandler(req, res, id);
+      return addCommentHandler(req, res, id, prompt);
     default:
       return res.status(405).json({ message: 'Method not allowed' });
   }
@@ -50,7 +69,7 @@ function getCommentsHandler(req, res, id) {
 /**
  * Add a new comment to a prompt
  */
-function addCommentHandler(req, res, id) {
+function addCommentHandler(req, res, id, prompt) {
   const { content } = req.body;
   
   try {
@@ -59,7 +78,8 @@ function addCommentHandler(req, res, id) {
       promptId: id,
       userId: req.user.id,
       content,
-      createdBy: req.user.name || req.user.email
+      createdBy: req.user.name || req.user.email,
+      teamId: prompt.visibility === 'team' ? prompt.teamId : null
     };
     
     const validation = validateComment(commentData);

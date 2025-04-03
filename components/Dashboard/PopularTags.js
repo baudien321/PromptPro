@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { HashtagIcon } from '@heroicons/react/24/outline';
+import { HashtagIcon, AdjustmentsHorizontalIcon } from '@heroicons/react/24/outline';
 
 /**
  * Component to display popular tags
@@ -12,6 +12,13 @@ export default function PopularTags({ tags = [] }) {
     return (
       <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 text-center">
         <p className="text-gray-500">No tags available</p>
+        <Link 
+          href="/tags"
+          className="inline-flex items-center mt-3 text-sm text-primary-600 hover:text-primary-700"
+        >
+          <AdjustmentsHorizontalIcon className="h-4 w-4 mr-1" />
+          Manage Tags
+        </Link>
       </div>
     );
   }
@@ -30,9 +37,18 @@ export default function PopularTags({ tags = [] }) {
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="flex items-center mb-3">
-        <HashtagIcon className="h-5 w-5 text-primary-500 mr-2" />
-        <h3 className="text-sm font-medium text-gray-900">Popular Tags</h3>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center">
+          <HashtagIcon className="h-5 w-5 text-primary-500 mr-2" />
+          <h3 className="text-sm font-medium text-gray-900">Popular Tags</h3>
+        </div>
+        <Link 
+          href="/tags"
+          className="inline-flex items-center text-xs text-primary-600 hover:text-primary-700"
+        >
+          <AdjustmentsHorizontalIcon className="h-4 w-4 mr-1" />
+          Manage
+        </Link>
       </div>
       <div className="flex flex-wrap gap-2">
         {tags.map((tag) => (

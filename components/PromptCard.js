@@ -7,38 +7,33 @@ import {
   ChartBarIcon
 } from '@heroicons/react/24/outline';
 import { formatDate, truncateText, copyToClipboard } from '../lib/utils';
-import { useSession } from 'next-auth/react';
 import Button from './Button';
 import StarRating from './StarRating';
 import UsageCounter from './UsageCounter';
 import SuccessToggle from './SuccessToggle';
+import { canManagePrompt } from '../lib/permissions';
 
-const PromptCard = ({ prompt, onDelete, showActions = true }) => {
+const PromptCard = ({ prompt, team, session, onDelete, showActions = true }) => {
   const [isCopied, setIsCopied] = useState(false);
-  const { data: session } = useSession();
   
   if (!prompt) return null;
   
-  // Convert IDs to strings for proper comparison
   const sessionUserId = String(session?.user?.id || session?.sub || '');
   const promptUserId = String(prompt.userId || '');
   
-  console.log('Session User ID:', sessionUserId);
-  console.log('Prompt User ID:', promptUserId);
-  console.log('Types:', typeof sessionUserId, typeof promptUserId);
-  
-  // Force ownership for testing or make proper comparison
-  const isOwner = true; // For testing, make all prompts editable
-  
-  /*
-  // Uncomment this for proper ownership check once testing is done
-  const isOwner = sessionUserId && promptUserId && (
-    sessionUserId === promptUserId ||
-    sessionUserId === String(prompt.userId) ||
-    promptUserId === String(session?.user?.id) ||
-    promptUserId === String(session?.sub)
-  );
-  */
+  let canEdit = false;
+  let canDelete = false;
+
+  if (sessionUserId) {
+    if (prompt.visibility === 'team' && team) {
+      canEdit = canManagePrompt(team, sessionUserId, prompt, 'edit');
+      canDelete = canManagePrompt(team, sessionUserId, prompt, 'delete');
+    } else {
+      const isOwner = sessionUserId === promptUserId;
+      canEdit = isOwner;
+      canDelete = isOwner;
+    }
+  }
   
   const handleCopy = async () => {
     const success = await copyToClipboard(prompt.content);
@@ -46,7 +41,6 @@ const PromptCard = ({ prompt, onDelete, showActions = true }) => {
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
       
-      // Increment usage count
       try {
         await fetch(`/api/prompts/${prompt.id}/increment-usage`, {
           method: 'POST',
@@ -79,24 +73,23 @@ const PromptCard = ({ prompt, onDelete, showActions = true }) => {
               <span className="text-sm">Copy</span>
             </button>
             
-            {isOwner && (
-              <>
-                <Link href={`/prompts/edit/${prompt.id}`} 
-                  className="flex items-center text-gray-600 hover:text-primary-600 focus:outline-none px-2 py-1 rounded-md hover:bg-gray-100" 
-                  title="Edit prompt">
-                    <PencilIcon className="h-5 w-5 mr-1" />
-                    <span className="text-sm">Edit</span>
-                </Link>
-                
-                <button
-                  onClick={handleDelete}
-                  className="flex items-center text-gray-600 hover:text-red-600 focus:outline-none px-2 py-1 rounded-md hover:bg-gray-100"
-                  title="Delete prompt"
-                >
-                  <TrashIcon className="h-5 w-5 mr-1" />
-                  <span className="text-sm">Delete</span>
-                </button>
-              </>
+            {canEdit && (
+              <Link href={`/prompts/edit/${prompt.id}`} 
+                className="flex items-center text-gray-600 hover:text-primary-600 focus:outline-none px-2 py-1 rounded-md hover:bg-gray-100" 
+                title="Edit prompt">
+                  <PencilIcon className="h-5 w-5 mr-1" />
+                  <span className="text-sm">Edit</span>
+              </Link>
+            )}
+            {canDelete && (
+              <button
+                onClick={handleDelete}
+                className="flex items-center text-gray-600 hover:text-red-600 focus:outline-none px-2 py-1 rounded-md hover:bg-gray-100"
+                title="Delete prompt"
+              >
+                <TrashIcon className="h-5 w-5 mr-1" />
+                <span className="text-sm">Delete</span>
+              </button>
             )}
           </div>
         )}
@@ -143,7 +136,6 @@ const PromptCard = ({ prompt, onDelete, showActions = true }) => {
       </div>
       
       <div className="mt-3 flex flex-wrap items-center gap-4 text-sm text-gray-600">
-        {/* Rating component */}
         {prompt.rating !== undefined && (
           <StarRating
             rating={prompt.rating || 0}
@@ -152,7 +144,6 @@ const PromptCard = ({ prompt, onDelete, showActions = true }) => {
           />
         )}
         
-        {/* Usage counter */}
         {prompt.usageCount !== undefined && (
           <UsageCounter
             count={prompt.usageCount || 0}
@@ -160,7 +151,6 @@ const PromptCard = ({ prompt, onDelete, showActions = true }) => {
           />
         )}
         
-        {/* Success toggle/indicator */}
         {prompt.isSuccess !== undefined && (
           <SuccessToggle
             isSuccess={prompt.isSuccess}
@@ -169,7 +159,6 @@ const PromptCard = ({ prompt, onDelete, showActions = true }) => {
           />
         )}
         
-        {/* Success rate (if available) */}
         {prompt.successRate !== undefined && (
           <div className="flex items-center">
             <ChartBarIcon className="h-4 w-4 mr-1 text-gray-400" />

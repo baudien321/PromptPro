@@ -7,7 +7,7 @@ import Button from '../../components/Button';
 
 export default function SignUp() {
   const [formData, setFormData] = useState({
-    name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -29,8 +29,18 @@ export default function SignUp() {
     setError('');
 
     // Validate form
-    if (!formData.name || !formData.email || !formData.password) {
+    if (!formData.username || !formData.email || !formData.password) {
       setError('All fields are required');
+      return;
+    }
+    
+    if (formData.username.length < 4 || formData.username.length > 20) {
+      setError('Username must be between 4 and 20 characters');
+      return;
+    }
+    
+    if (!/^[a-zA-Z0-9._]+$/.test(formData.username) || formData.username.includes('..') || formData.username.startsWith('.') || formData.username.endsWith('.') || formData.username.startsWith('_') || formData.username.endsWith('_')) {
+      setError('Username contains invalid characters.');
       return;
     }
     
@@ -48,36 +58,40 @@ export default function SignUp() {
       setIsLoading(true);
       
       // Create the user
-      const response = await fetch('/api/auth/signup', {
+      const response = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: formData.name,
+          username: formData.username,
           email: formData.email,
           password: formData.password,
         }),
       });
       
+      const responseData = await response.json();
+      
       if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || 'Something went wrong');
+        throw new Error(responseData.message || 'Something went wrong during registration');
       }
       
       // Sign in the user
       const result = await signIn('credentials', {
         redirect: false,
-        email: formData.email,
+        login: formData.username,
         password: formData.password,
       });
       
       if (result.error) {
-        throw new Error(result.error);
+        setError(`Registration successful, but login failed: ${result.error}. Please try logging in manually.`);
+        setIsLoading(false);
+        return;
       }
       
       // Redirect to home page
       router.push('/');
     } catch (error) {
-      setError(error.message);
+      console.error("Signup error:", error);
+      setError(error.message || 'An unexpected error occurred.');
     } finally {
       setIsLoading(false);
     }
@@ -116,19 +130,23 @@ export default function SignUp() {
               <div className="mt-6">
                 <form onSubmit={handleSubmit} className="space-y-6">
                   <div>
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                      Name
+                    <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                      Username
                     </label>
                     <div className="mt-1">
                       <input
-                        id="name"
-                        name="name"
+                        id="username"
+                        name="username"
                         type="text"
                         required
-                        value={formData.name}
+                        value={formData.username}
                         onChange={handleChange}
                         className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                        aria-describedby="username-description"
                       />
+                      <p className="mt-1 text-xs text-gray-500" id="username-description">
+                        4-20 characters. Letters, numbers, periods, underscores allowed.
+                      </p>
                     </div>
                   </div>
 
@@ -164,7 +182,11 @@ export default function SignUp() {
                         value={formData.password}
                         onChange={handleChange}
                         className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
+                        aria-describedby="password-description"
                       />
+                      <p className="mt-1 text-xs text-gray-500" id="password-description">
+                        Must be at least 8 characters long.
+                      </p>
                     </div>
                   </div>
 

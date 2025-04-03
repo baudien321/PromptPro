@@ -15,6 +15,7 @@ export default function TeamDetail() {
   const [teamPrompts, setTeamPrompts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [teamPromptsError, setTeamPromptsError] = useState(null);
   
   // Redirect to sign in if not authenticated
   useEffect(() => {
@@ -55,18 +56,23 @@ export default function TeamDetail() {
   
   const fetchTeamPrompts = async () => {
     try {
-      const response = await fetch(`/api/prompts?teamId=${id}`);
+      const response = await fetch(`/api/teams/${id}/prompts`);
       
       if (!response.ok) {
+        if (response.status === 403) {
+            throw new Error('You do not have permission to view these prompts.');
+        }
         throw new Error('Failed to fetch team prompts');
       }
       
       const data = await response.json();
       setTeamPrompts(data);
+      setTeamPromptsError(null);
       
     } catch (error) {
       console.error('Error fetching team prompts:', error);
-      // We don't set the main error here as we still want to show the team
+      setTeamPromptsError(error.message || 'Failed to load prompts');
+      setTeamPrompts([]);
     }
   };
   
@@ -201,7 +207,7 @@ export default function TeamDetail() {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold text-gray-900">Team Prompts</h2>
             
-            <Link href={`/prompts/create?teamId=${team.id}`}>
+            <Link href={`/prompts/create?teamId=${team.id}&visibility=team`}>
               <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm flex items-center">
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
@@ -211,14 +217,20 @@ export default function TeamDetail() {
             </Link>
           </div>
           
-          {teamPrompts.length === 0 ? (
+          {teamPromptsError && (
+             <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6">
+                <p>{teamPromptsError}</p>
+            </div>
+          )}
+          
+          {teamPrompts.length === 0 && !teamPromptsError ? (
             <div className="bg-white rounded-lg border p-8 text-center">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 mx-auto text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <h3 className="text-lg font-medium text-gray-900 mb-2">No prompts yet</h3>
               <p className="text-gray-500 mb-6">Create your first team prompt to start collaborating</p>
-              <Link href={`/prompts/create?teamId=${team.id}`}>
+              <Link href={`/prompts/create?teamId=${team.id}&visibility=team`}>
                 <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm">
                   Create Your First Team Prompt
                 </button>
@@ -227,7 +239,7 @@ export default function TeamDetail() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {teamPrompts.map((prompt) => (
-                <PromptCard key={prompt.id} prompt={prompt} />
+                <PromptCard key={prompt.id} prompt={prompt} team={team} session={session} />
               ))}
             </div>
           )}

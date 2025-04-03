@@ -1,48 +1,89 @@
-// User model for authentication and user profile
-export const userModel = {
-  // Basic user information
-  id: String,
-  name: String,
-  email: String,
-  password: String, // Hashed password for email/password auth
-  image: String,    // Profile image URL
-  
-  // Account metadata
-  createdAt: Date,
-  updatedAt: Date,
-  
-  // Optional fields
-  bio: String,
-  preferences: Object,
-};
+import mongoose, { Schema, models } from 'mongoose';
 
-// Validation for user data
+// Define the User Schema using Mongoose
+const UserSchema = new Schema({
+  username: {
+    type: String,
+    required: [true, 'Username is required.'],
+    unique: [true, 'Username already exists.'],
+    match: [/^(?=.{4,20}$)(?![_.])(?!.*[_.]{2})[a-zA-Z0-9._]+(?<![_.])$/, "Username invalid, it should contain 4-20 alphanumeric letters and be unique!"] // Example regex validation
+  },
+  name: { // Keeping 'name' for display purposes potentially
+    type: String,
+  },
+  email: {
+    type: String,
+    required: [true, 'Email is required.'],
+    unique: [true, 'Email already exists.'],
+    match: [/\S+@\S+\.\S+/, 'Email is invalid.'] // Basic email format check
+  },
+  password: {
+    type: String,
+    required: [true, 'Password is required.'], // Will store the hash
+    select: false // Prevents password hash from being sent by default
+  },
+  image: {
+    type: String, // URL to profile image
+  },
+  role: {
+    type: String,
+    enum: ['viewer', 'editor', 'admin'], // Define allowed roles
+    default: 'viewer' // Default role for new users
+  },
+  bio: {
+      type: String,
+      maxlength: 160 // Example constraint
+  },
+  preferences: {
+      type: Object // Or define a more specific sub-schema if needed
+  }
+  // Mongoose automatically adds createdAt and updatedAt
+}, { timestamps: true }); // Enable automatic timestamps
+
+// Create the User model if it doesn't already exist
+const User = models.User || mongoose.model('User', UserSchema);
+
+export default User;
+
+// Validation for user data (consider adapting to Mongoose validation or using alongside)
 export const validateUser = (data) => {
   const errors = {};
-  
-  // Name validation
+
+  // Username validation
+  if (!data.username) {
+      errors.username = 'Username is required';
+  } else if (data.username.length < 4 || data.username.length > 20) {
+      errors.username = 'Username must be between 4 and 20 characters';
+  }
+  if (!/^[a-zA-Z0-9._]+$/.test(data.username) || data.username.includes('..') || data.username.startsWith('.') || data.username.endsWith('.') || data.username.startsWith('_') || data.username.endsWith('_')) {
+      // Check if username exists first before applying regex if making optional
+      if(data.username) errors.username = 'Username contains invalid characters.';
+  }
+
+  // Name validation (removed - no longer required on signup)
+  /*
   if (!data.name) {
     errors.name = 'Name is required';
   } else if (data.name.length < 2) {
     errors.name = 'Name must be at least 2 characters';
   }
-  
+  */
+
   // Email validation
   if (!data.email) {
     errors.email = 'Email is required';
   } else if (!/\S+@\S+\.\S+/.test(data.email)) {
     errors.email = 'Email is invalid';
   }
-  
-  // Password validation (only if provided - not required for OAuth)
+
+  // Password validation (for input, not the hash)
+  // Note: Mongoose handles required check. This is for length etc. on signup.
   if (data.password !== undefined) {
-    if (!data.password) {
-      errors.password = 'Password is required';
-    } else if (data.password.length < 8) {
+    if (data.password.length < 8) {
       errors.password = 'Password must be at least 8 characters';
     }
   }
-  
+
   return {
     isValid: Object.keys(errors).length === 0,
     errors
@@ -50,9 +91,14 @@ export const validateUser = (data) => {
 };
 
 // Method to sanitize user data for client-side (remove sensitive info)
+// Adapt this if you fetch user data using Mongoose and need to hide fields
+// Mongoose 'select: false' on password helps, but this can be used for other fields
 export const sanitizeUser = (user) => {
   if (!user) return null;
-  
-  const { password, ...sanitizedUser } = user;
+
+  // If user is a Mongoose document, convert to object first
+  const userObject = typeof user.toObject === 'function' ? user.toObject() : user;
+
+  const { password, __v, ...sanitizedUser } = userObject; // Remove password and __v
   return sanitizedUser;
 };

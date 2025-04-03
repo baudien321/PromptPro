@@ -28,25 +28,20 @@
       "static/chunks/main.js",
       "static/chunks/pages/_error.js"
     ],
-    "/collections": [
+    "/auth/signin": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/collections.js"
+      "static/chunks/pages/auth/signin.js"
     ],
-    "/prompts/create": [
+    "/auth/signup": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/prompts/create.js"
+      "static/chunks/pages/auth/signup.js"
     ],
-    "/prompts/my-prompts": [
+    "/dashboard": [
       "static/chunks/webpack.js",
       "static/chunks/main.js",
-      "static/chunks/pages/prompts/my-prompts.js"
-    ],
-    "/teams": [
-      "static/chunks/webpack.js",
-      "static/chunks/main.js",
-      "static/chunks/pages/teams.js"
+      "static/chunks/pages/dashboard.js"
     ]
   },
   "ampFirstPages": []

@@ -6,7 +6,7 @@ import Layout from "../../components/Layout";
 import Button from "../../components/Button";
 
 export default function SignIn({ csrfToken }) {
-  const [email, setEmail] = useState("");
+  const [login, setLogin] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -17,8 +17,8 @@ export default function SignIn({ csrfToken }) {
     e.preventDefault();
     setError("");
     
-    if (!email || !password) {
-      setError("Email and password are required");
+    if (!login || !password) {
+      setError("Username/Email and password are required");
       return;
     }
     
@@ -26,17 +26,18 @@ export default function SignIn({ csrfToken }) {
       setIsLoading(true);
       const result = await signIn("credentials", {
         redirect: false,
-        email,
+        login: login,
         password,
       });
       
       if (result.error) {
-        setError("Invalid email or password");
+        setError("Invalid username/email or password");
       } else {
         router.push(callbackUrl || "/");
       }
     } catch (error) {
-      setError("Something went wrong");
+      console.error("Signin error:", error);
+      setError("An unexpected error occurred during sign in.");
     } finally {
       setIsLoading(false);
     }
@@ -79,18 +80,18 @@ export default function SignIn({ csrfToken }) {
                   <input name="csrfToken" type="hidden" defaultValue={csrfToken} />
                   
                   <div>
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                      Email address
+                    <label htmlFor="login" className="block text-sm font-medium text-gray-700">
+                      Username or Email
                     </label>
                     <div className="mt-1">
                       <input
-                        id="email"
-                        name="email"
-                        type="email"
-                        autoComplete="email"
+                        id="login"
+                        name="login"
+                        type="text"
+                        autoComplete="username email"
                         required
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        value={login}
+                        onChange={(e) => setLogin(e.target.value)}
                         className="block w-full appearance-none rounded-md border border-gray-300 px-3 py-2 placeholder-gray-400 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-indigo-500"
                       />
                     </div>

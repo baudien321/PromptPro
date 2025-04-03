@@ -1,6 +1,8 @@
 import { validatePrompt } from '../../../models/prompt';
 import { withAuthForMethods } from '../../../lib/auth';
 import * as promptRepository from '../../../lib/repositories/promptRepository';
+import { isTeamMember } from '../../../models/team';
+import { getUserTeams } from '../../../lib/db';
 
 async function handler(req, res) {
   // Set cache control headers to prevent caching
@@ -24,7 +26,7 @@ export default withAuthForMethods(handler, ['POST']);
 async function getPrompts(req, res) {
   try {
     // Get query parameters for filtering
-    const { userId, visibility, aiPlatform, tags } = req.query;
+    const { userId, visibility, aiPlatform, tags, teamId } = req.query;
     
     // Create filter object
     const filter = {};
@@ -32,14 +34,60 @@ async function getPrompts(req, res) {
     if (userId) filter.userId = userId;
     if (visibility) filter.visibility = visibility;
     if (aiPlatform) filter.aiPlatform = aiPlatform;
+    if (teamId) filter.teamId = teamId;
     
     // Parse tags if provided
     if (tags) {
       filter.tags = Array.isArray(tags) ? tags : [tags];
     }
     
+    // Get the current user ID if authenticated
+    const currentUserId = req.session?.sub || null;
+    
     // Get prompts from repository
-    const prompts = await promptRepository.getAllPrompts(filter);
+    let prompts = await promptRepository.getAllPrompts(filter);
+    
+    // If the user is authenticated, filter prompts based on visibility
+    if (currentUserId) {
+      // If a specific teamId is requested, verify membership
+      if (teamId) {
+        const userTeams = await getUserTeams(currentUserId);
+        const team = userTeams.find(t => t.id === teamId);
+        
+        if (!team || !isTeamMember(team, currentUserId)) {
+          return res.status(403).json({ message: 'Not authorized to view prompts from this team' });
+        }
+      }
+      
+      // If no specific filter is provided, apply visibility-based filtering
+      if (!filter.visibility && !filter.teamId) {
+        // Get all teams the user is a member of
+        const userTeams = await getUserTeams(currentUserId);
+        const userTeamIds = userTeams.map(team => team.id);
+        
+        // Filter prompts based on visibility and team membership
+        prompts = prompts.filter(prompt => {
+          // Public prompts are visible to everyone
+          if (prompt.visibility === 'public') return true;
+          
+          // Private prompts are only visible to creator
+          if (prompt.visibility === 'private') {
+            return String(prompt.userId) === String(currentUserId);
+          }
+          
+          // Team prompts are visible to team members
+          if (prompt.visibility === 'team' && prompt.teamId) {
+            return userTeamIds.includes(prompt.teamId);
+          }
+          
+          return false;
+        });
+      }
+    } else {
+      // For non-authenticated users, only return public prompts
+      prompts = prompts.filter(prompt => prompt.visibility === 'public');
+    }
+    
     return res.status(200).json(prompts);
   } catch (error) {
     console.error('Error getting prompts:', error);
@@ -51,16 +99,24 @@ async function addPrompt(req, res) {
   try {
     const promptData = req.body;
     
-    // Add user info from session - checking all possible locations
-    const userId = req.session?.user?.id || req.user?.id || req.session?.sub;
-    const userName = req.session?.user?.name || req.user?.name || 'Unknown User';
+    // Add user info from session
+    const userId = req.session?.sub;
+    const userName = req.session?.user?.name || 'Unknown User';
     
     console.log('Creating prompt with user ID:', userId);
-    console.log('Session data:', req.session);
-    console.log('User data:', req.user);
     
     if (!userId) {
       return res.status(401).json({ message: 'Authentication required' });
+    }
+    
+    // For team prompts, verify team membership
+    if (promptData.visibility === 'team' && promptData.teamId) {
+      const userTeams = await getUserTeams(userId);
+      const isTeamMember = userTeams.some(team => team.id === promptData.teamId);
+      
+      if (!isTeamMember) {
+        return res.status(403).json({ message: 'You must be a team member to create prompts for this team' });
+      }
     }
     
     // Validate prompt data

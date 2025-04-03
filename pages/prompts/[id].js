@@ -7,7 +7,10 @@ import Button from '../../components/Button';
 import StarRating from '../../components/StarRating';
 import SuccessToggle from '../../components/SuccessToggle';
 import UsageCounter from '../../components/UsageCounter';
+import Comments from '../../components/Comments';
 import { formatDate, copyToClipboard } from '../../lib/utils';
+import { canManagePrompt } from '../../lib/permissions';
+import { getTeamById } from '../../lib/db';
 
 import {
   ChatBubbleBottomCenterTextIcon,
@@ -18,7 +21,8 @@ import {
   ClipboardIcon,
   LightBulbIcon,
   CheckCircleIcon,
-  StarIcon
+  StarIcon,
+  UsersIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -28,6 +32,7 @@ export default function PromptDetail() {
   const { data: session } = useSession();
   
   const [prompt, setPrompt] = useState(null);
+  const [team, setTeam] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
@@ -35,14 +40,14 @@ export default function PromptDetail() {
   const [isSaving, setIsSaving] = useState(false);
   
   useEffect(() => {
-    const fetchPrompt = async () => {
+    const fetchPromptAndTeam = async () => {
       if (!id) return;
       
       try {
         setIsLoading(true);
         setError(null);
+        setTeam(null);
         
-        // Add retries to handle potential race condition with database initialization
         let retries = 3;
         let response;
         let success = false;
@@ -55,38 +60,50 @@ export default function PromptDetail() {
             break;
           }
           
-          // If not found, wait a bit and retry - database might still be initializing
           if (response.status === 404) {
             retries--;
             if (retries > 0) {
               console.log(`Prompt not found, retrying... (${retries} attempts left)`);
-              await new Promise(resolve => setTimeout(resolve, 500)); // Wait 500ms before retry
+              await new Promise(resolve => setTimeout(resolve, 500));
             }
           } else {
-            // For other errors, don't retry
             break;
           }
         }
         
         if (!response.ok) {
-          if (response.status === 404) {
-            throw new Error('Prompt not found');
-          }
+          if (response.status === 404) throw new Error('Prompt not found');
+          if (response.status === 403) throw new Error('You do not have permission to view this prompt.');
           throw new Error(`Failed to fetch prompt details: ${response.status}`);
         }
         
-        const data = await response.json();
-        setPrompt(data);
+        const promptData = await response.json();
+        setPrompt(promptData);
+
+        if (promptData.visibility === 'team' && promptData.teamId) {
+          try {
+            const teamResponse = await fetch(`/api/teams/${promptData.teamId}`);
+            if (!teamResponse.ok) {
+              console.error(`Failed to fetch team ${promptData.teamId}: ${teamResponse.status}`);
+            } else {
+              const teamData = await teamResponse.json();
+              setTeam(teamData);
+            }
+          } catch (teamError) {
+            console.error('Error fetching team data:', teamError);
+          }
+        }
         
       } catch (error) {
-        console.error('Error fetching prompt:', error);
+        console.error('Error fetching prompt details:', error);
         setError(error.message || 'An error occurred');
+        setPrompt(null);
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchPrompt();
+    fetchPromptAndTeam();
   }, [id]);
   
   const handleCopyToClipboard = async () => {
@@ -94,7 +111,6 @@ export default function PromptDetail() {
       await copyToClipboard(prompt.content);
       setCopied(true);
       
-      // Increment usage count via API
       try {
         const response = await fetch(`/api/prompts/${id}/increment-usage`, {
           method: 'POST',
@@ -184,11 +200,16 @@ export default function PromptDetail() {
         throw new Error('Failed to delete prompt');
       }
       
-      router.push('/prompts/my-prompts');
+      if (prompt?.teamId) {
+        router.push(`/teams/${prompt.teamId}`);
+      } else {
+        router.push('/prompts/my-prompts');
+      }
       
     } catch (error) {
       console.error('Error deleting prompt:', error);
       alert('Failed to delete prompt. Please try again.');
+      setDeleteConfirm(false);
     }
   };
   
@@ -222,6 +243,21 @@ export default function PromptDetail() {
         return <ChatBubbleBottomCenterTextIcon className="h-5 w-5" />;
     }
   };
+  
+  const sessionUserId = String(session?.user?.id || session?.sub || '');
+  let canEdit = false;
+  let canDelete = false;
+
+  if (prompt && sessionUserId) {
+    if (prompt.visibility === 'team' && team) {
+      canEdit = canManagePrompt(team, sessionUserId, prompt, 'edit');
+      canDelete = canManagePrompt(team, sessionUserId, prompt, 'delete');
+    } else {
+      const isOwner = sessionUserId === String(prompt.userId);
+      canEdit = isOwner;
+      canDelete = isOwner;
+    }
+  }
   
   if (isLoading) {
     return (
@@ -257,8 +293,6 @@ export default function PromptDetail() {
     );
   }
   
-  const isOwner = session?.user?.id === prompt.userId;
-  
   return (
     <Layout title={`PromptPro - ${prompt.title}`}>
       <div className="max-w-4xl mx-auto">
@@ -275,7 +309,6 @@ export default function PromptDetail() {
         </div>
         
         <div className="bg-white shadow rounded-lg overflow-hidden">
-          {/* Prompt Header */}
           <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center space-x-2">
@@ -286,11 +319,15 @@ export default function PromptDetail() {
                 
                 {prompt.visibility && (
                   <>
-                    <span className="text-gray-300">•</span>
-                    <span className="text-sm text-gray-500">
-                      {prompt.visibility === 'public' && 'Public'}
-                      {prompt.visibility === 'private' && 'Private'}
-                      {prompt.visibility === 'unlisted' && 'Unlisted'}
+                    <span className="text-gray-300 mx-1">•</span>
+                    <span className="text-sm text-gray-500 inline-flex items-center">
+                      {prompt.visibility === 'public' && <GlobeAltIcon className="h-4 w-4 mr-1" />} 
+                      {prompt.visibility === 'private' && <LockClosedIcon className="h-4 w-4 mr-1" />}
+                      {prompt.visibility === 'team' && <UsersIcon className="h-4 w-4 mr-1" />}
+                      {prompt.visibility.charAt(0).toUpperCase() + prompt.visibility.slice(1)}
+                      {prompt.visibility === 'team' && team && (
+                         <Link href={`/teams/${team.id}`} className="ml-1 text-primary-600 hover:underline">({team.name})</Link>
+                      )}
                     </span>
                   </>
                 )}
@@ -299,35 +336,30 @@ export default function PromptDetail() {
               <div className="flex items-center space-x-3">
                 {prompt.rating !== undefined && renderRatingStars(prompt.rating || 0)}
                 
-                {isOwner && (
-                  <div className="flex space-x-2">
-                    <Link href={`/prompts/edit/${prompt.id}`}>
-                      <Button variant="secondary" className="py-1.5 px-3 text-sm">
-                        <PencilIcon className="h-4 w-4 mr-1.5" />
-                        Edit
-                      </Button>
-                    </Link>
-                    <Button 
-                      variant={deleteConfirm ? "danger" : "secondary"} 
-                      className="py-1.5 px-3 text-sm"
-                      onClick={handleDelete}
-                    >
-                      {deleteConfirm ? (
-                        <>Confirm</>
-                      ) : (
-                        <>
-                          <TrashIcon className="h-4 w-4 mr-1.5" />
-                          Delete
-                        </>
-                      )}
+                {canEdit && (
+                  <Link href={`/prompts/edit/${prompt.id}`}>
+                    <Button variant="secondary" className="py-1.5 px-3 text-sm">
+                      <PencilIcon className="h-4 w-4 mr-1.5" /> Edit
                     </Button>
-                  </div>
+                  </Link>
+                )}
+                {canDelete && (
+                  <Button 
+                    variant={deleteConfirm ? "danger" : "secondary"} 
+                    className="py-1.5 px-3 text-sm"
+                    onClick={handleDelete}
+                  >
+                    {deleteConfirm ? (
+                      <>Confirm Delete</>
+                    ) : (
+                      <><TrashIcon className="h-4 w-4 mr-1.5" /> Delete</>
+                    )}
+                  </Button>
                 )}
               </div>
             </div>
           </div>
           
-          {/* Prompt Content */}
           <div className="px-6 py-5">
             <div className="relative bg-gray-50 border border-gray-200 rounded-md p-4 group cursor-pointer" 
                  onClick={handleCopyToClipboard}>
@@ -382,7 +414,6 @@ export default function PromptDetail() {
             )}
           </div>
           
-          {/* Performance Metrics */}
           <div className="px-6 py-4 border-t border-gray-200">
             <h3 className="text-sm font-medium text-gray-700 mb-3">Performance Metrics</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -429,7 +460,6 @@ export default function PromptDetail() {
               <div className="mt-4">
                 <h4 className="text-xs font-medium text-gray-700 mb-2">Usage Trend</h4>
                 <div className="h-24 bg-gray-50 rounded-lg p-2">
-                  {/* Simple bar chart visualization - would be replaced by a proper chart component */}
                   <div className="flex h-full items-end space-x-1">
                     {prompt.usageHistory.map((count, i) => {
                       const maxCount = Math.max(...prompt.usageHistory);
@@ -450,7 +480,11 @@ export default function PromptDetail() {
             )}
           </div>
           
-          {/* Prompt Footer */}
+          <div className="px-6 py-5 border-t border-gray-200">
+            <h2 className="text-xl font-semibold text-gray-900 mb-4">Comments</h2>
+            <Comments prompt={prompt} team={team} session={session} /> 
+          </div>
+          
           <div className="bg-gray-50 px-6 py-3 border-t border-gray-200">
             <div className="flex flex-wrap justify-between items-center gap-2">
               <div className="text-xs text-gray-500">
@@ -475,7 +509,6 @@ export default function PromptDetail() {
           </div>
         </div>
         
-        {/* Version History */}
         <div className="mt-10">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-bold text-gray-900">Version History</h2>
@@ -523,7 +556,6 @@ export default function PromptDetail() {
           )}
         </div>
         
-        {/* User Feedback Section */}
         <div className="mt-10">
           <h2 className="text-xl font-bold text-gray-900 mb-4">User Feedback</h2>
           
@@ -582,7 +614,6 @@ export default function PromptDetail() {
                         acc[useCase] = (acc[useCase] || 0) + 1;
                         return acc;
                       }, {})
-                      // Get the most common use case
                       .sort((a, b) => Object.values(b)[0] - Object.values(a)[0])[0]
                       ? Object.keys(prompt.feedback
                           .map(item => item.useCase)
@@ -649,7 +680,6 @@ export default function PromptDetail() {
           )}
         </div>
         
-        {/* Related Prompts Section */}
         <div className="mt-10 mb-6">
           <h2 className="text-xl font-bold text-gray-900 mb-4">Related Prompts</h2>
           

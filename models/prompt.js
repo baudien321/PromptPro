@@ -1,11 +1,23 @@
 // Prompt model structure
+
+// Define supported AI platforms
+export const SUPPORTED_AI_PLATFORMS = [
+  'ChatGPT', 
+  'Claude', 
+  'Gemini', 
+  'MidJourney', 
+  'DALL-E',
+  'Other' // Allow a generic 'Other' category
+];
+
 export const promptModel = {
   id: Number,
   title: String,
   content: String,
   description: String, // Brief description of what the prompt does
   tags: Array, // of strings
-  aiPlatform: String, // e.g., 'ChatGPT', 'Claude', 'MidJourney', 'DALL-E', etc.
+  aiPlatform: String, // Primary platform, e.g., 'ChatGPT', 'Claude', etc.
+  compatiblePlatforms: Array, // Other platforms this prompt might work on (optional)
   rating: Number, // 1-5 rating
   usageCount: Number, // How many times the prompt has been used
   successRate: Number, // Percentage of successful uses (0-100)
@@ -64,9 +76,39 @@ export const validatePrompt = (data) => {
     }
   }
   
-  // AI Platform validation
-  if (data.aiPlatform && typeof data.aiPlatform !== 'string') {
-    errors.aiPlatform = 'AI Platform must be a string';
+  // AI Platform validation (Primary)
+  if (data.aiPlatform) {
+      if (typeof data.aiPlatform !== 'string') {
+          errors.aiPlatform = 'AI Platform must be a string';
+      } else if (!SUPPORTED_AI_PLATFORMS.includes(data.aiPlatform)) {
+          errors.aiPlatform = `AI Platform must be one of: ${SUPPORTED_AI_PLATFORMS.join(', ')}`;
+      }
+  } else {
+      // Make primary platform required, or default it? For now, let's require it if provided.
+      // If it's truly optional, remove this else block. Assuming it might be optional for now.
+  }
+
+  // Compatible Platforms validation (Optional)
+  if (data.compatiblePlatforms) {
+    if (!Array.isArray(data.compatiblePlatforms)) {
+      errors.compatiblePlatforms = 'Compatible Platforms must be an array';
+    } else {
+      for (let i = 0; i < data.compatiblePlatforms.length; i++) {
+        const platform = data.compatiblePlatforms[i];
+        if (typeof platform !== 'string') {
+          errors.compatiblePlatforms = 'All compatible platforms must be strings';
+          break;
+        }
+        if (!SUPPORTED_AI_PLATFORMS.includes(platform)) {
+          errors.compatiblePlatforms = `Compatible platform "${platform}" is not supported. Must be one of: ${SUPPORTED_AI_PLATFORMS.join(', ')}`;
+          break;
+        }
+      }
+      // Ensure compatible platforms don't duplicate the primary platform if both are set
+      if (data.aiPlatform && data.compatiblePlatforms.includes(data.aiPlatform)) {
+          errors.compatiblePlatforms = 'Compatible Platforms should not include the primary AI Platform.';
+      }
+    }
   }
   
   // Rating validation (1-5)
