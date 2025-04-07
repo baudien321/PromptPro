@@ -1,0 +1,37 @@
+[
+  {
+    "id": "template-explain",
+    "name": "Explain Concept",
+    "description": "Explain a complex topic in simple terms.",
+    "models": ["ChatGPT", "Claude", "Gemini"],
+    "content": "Explain the concept of [Your Concept Here] to me as if I were a complete beginner. Use simple language and analogies if possible."
+  },
+  {
+    "id": "template-summarize",
+    "name": "Summarize Text",
+    "description": "Condense a long piece of text.",
+     "models": ["ChatGPT", "Claude", "Gemini"],
+    "content": "Please summarize the following text into [Number] key bullet points:\n\n[Paste Your Text Here]"
+  },
+  {
+    "id": "template-brainstorm",
+    "name": "Brainstorm Ideas",
+    "description": "Generate ideas for a specific topic.",
+     "models": ["ChatGPT", "Claude", "Gemini"],
+    "content": "Brainstorm [Number] creative ideas for [Your Topic or Goal Here]. Consider different angles and approaches."
+  },
+   {
+    "id": "template-code-explain",
+    "name": "Explain Code Snippet",
+    "description": "Explain what a piece of code does.",
+     "models": ["ChatGPT", "Claude", "Gemini"],
+    "content": "Explain what the following code snippet does, line by line:\n\n```[Language, e.g., python]\n[Paste Your Code Here]\n```"
+  },
+   {
+    "id": "template-email-draft",
+    "name": "Draft Email",
+    "description": "Draft a professional email.",
+    "models": ["ChatGPT", "Claude", "Gemini"],
+    "content": "Draft a professional email to [Recipient Name/Role] about [Subject]. \n\nKey points to include:\n- [Point 1]\n- [Point 2]\n- [Point 3]\n\nDesired tone: [e.g., Formal, Friendly, Persuasive]"
+  }
+] 

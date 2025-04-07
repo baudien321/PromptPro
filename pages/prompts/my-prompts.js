@@ -31,52 +31,51 @@ export default function MyPrompts() {
   const [showFilters, setShowFilters] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   
-  // Function to force reload data manually
-  const reloadPrompts = async () => {
-    if (status === 'loading' || !session) return;
-    
+  // Refactored reloadPrompts
+  const reloadPrompts = async (searchCriteria = {}) => { // Accept search criteria
+    if (status === 'loading' || !session?.user?.id) return;
+
+    console.log('Fetching prompts with criteria:', searchCriteria);
+    setIsLoading(true);
+    setError(null);
+
     try {
-      setIsLoading(true);
-      
-      // Fetch user's prompts
-      if (!session.user || !session.user.id) {
-        console.error('User session is incomplete');
-        console.log('Session data:', session);
-        setError('User authentication error. Please try signing in again.');
-        setIsLoading(false);
-        return;
+      // Build query string
+      const params = new URLSearchParams();
+      params.append('userId', session.user.id); // Always filter by current user on this page
+
+      // Add search criteria if provided
+      if (searchCriteria.query) params.append('q', searchCriteria.query); // Assuming API supports 'q' for text search
+      if (searchCriteria.tags && searchCriteria.tags.length > 0) {
+         searchCriteria.tags.forEach(tag => params.append('tags', tag));
       }
-      
-      console.log('Fetching prompts for user ID:', session.user.id);
-      console.log('Full session:', session);
-      
-      // Use a direct API endpoint instead of search
-      const timestamp = new Date().getTime();
-      const response = await fetch(`/api/prompts/user?t=${timestamp}`, {
+       if (searchCriteria.aiPlatform) params.append('aiPlatform', searchCriteria.aiPlatform);
+      // Add other filters from searchCriteria if needed (e.g., visibility - though maybe fixed on this page?)
+
+      const queryString = params.toString();
+      const timestamp = new Date().getTime(); // Cache busting
+
+      const response = await fetch(`/api/prompts?${queryString}&t=${timestamp}`, { // Use main endpoint
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache, no-store, must-revalidate',
-          'Pragma': 'no-cache',
-          'Expires': '0'
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
         },
         credentials: 'include'
       });
-      
+
       if (!response.ok) {
-        throw new Error('Failed to fetch your prompts');
+         const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to fetch your prompts');
       }
-      
+
       const data = await response.json();
-      console.log('Reloaded prompts:', data);
-      console.log('Number of prompts found:', data.length);
-      
-      setUserPrompts(data);
+      setUserPrompts(data); // Keep original full list if needed? Maybe not.
       setFilteredPrompts(data);
-      
-      // Apply initial sort
-      sortPrompts(data, sortBy);
-      
+      sortPrompts(data, sortBy); // Apply sort to fetched data
+
     } catch (error) {
       console.error('Error reloading prompts:', error);
       setError('Failed to reload your prompts. Please try again.');
@@ -84,64 +83,28 @@ export default function MyPrompts() {
       setIsLoading(false);
     }
   };
-  
+
+  // useEffect to load initial prompts (no search criteria)
   useEffect(() => {
-    // Check if we have a refresh parameter, indicating a prompt was just created or updated
+     reloadPrompts();
+  }, [session, status]); // Reload on session change
+
+  // useEffect for refresh query param (calls reloadPrompts with no criteria)
+  useEffect(() => {
     if (router.query.refresh) {
       setSuccessMessage('Prompt successfully saved!');
-      // Force reload data
       reloadPrompts();
-      // Clear the message after 5 seconds
       const timer = setTimeout(() => {
         setSuccessMessage('');
       }, 5000);
       return () => clearTimeout(timer);
     }
   }, [router.query.refresh]);
-  
-  useEffect(() => {
-    reloadPrompts();
-  }, [session, status]);
-  
-  const handleSearch = async (searchParams) => {
-    try {
-      setIsLoading(true);
-      // Add user ID to search params to only get current user's prompts
-      const userId = session?.user?.id;
-      
-      if (!userId) {
-        throw new Error("User session is incomplete");
-      }
-      
-      // Add timestamp to prevent caching
-      const timestamp = new Date().getTime();
-      const separator = searchParams ? '&' : '';
-      const response = await fetch(`/api/search?${searchParams}${separator}userId=${userId}&t=${timestamp}`, {
-        method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
-        },
-        credentials: 'include'
-      });
-      
-      if (!response.ok) {
-        throw new Error('Search failed');
-      }
-      
-      const data = await response.json();
-      console.log('Search results:', data);
-      setFilteredPrompts(data);
-      
-      // Apply current sort to new results
-      sortPrompts(data, sortBy);
-      
-    } catch (error) {
-      console.error('Error searching prompts:', error);
-      setError('Search failed. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+
+  // Refactored handleSearch (now just calls reloadPrompts with criteria)
+  const handleSearch = (searchCriteria) => {
+      console.log("Handling search with criteria:", searchCriteria);
+      reloadPrompts(searchCriteria); // Pass search criteria to the main fetch function
   };
   
   const handleDelete = async (promptId) => {

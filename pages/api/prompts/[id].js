@@ -3,6 +3,9 @@ import { withAuthForMethods } from '../../../lib/auth';
 import * as promptRepository from '../../../lib/repositories/promptRepository';
 import { canManagePrompt } from '../../../lib/permissions';
 import { getTeamById } from '../../../lib/db';
+import User from '../../../models/user'; // Import User model
+import connectDB from '../../../lib/mongoose';
+import { logAuditEvent } from '../../../models/auditLog'; // Import audit log helper
 
 async function handler(req, res) {
   const { id } = req.query;
@@ -157,6 +160,7 @@ async function updatePrompt(req, res, id) {
 
 async function deletePrompt(req, res, id) {
   try {
+    await connectDB(); // Ensure DB connection
     // Verify the prompt exists
     const existingPrompt = await promptRepository.getPromptById(id);
     
@@ -166,17 +170,17 @@ async function deletePrompt(req, res, id) {
     
     // --- Authorization Check ---
     const sessionUserId = String(req.session?.sub || '');
-    const promptUserId = String(existingPrompt.userId || '');
+    const promptOwnerUserId = String(existingPrompt.userId || ''); // Get owner ID from prompt
     
     console.log('API - Delete - Session User ID:', sessionUserId);
-    console.log('API - Delete - Prompt User ID:', promptUserId);
+    console.log('API - Delete - Prompt Owner User ID:', promptOwnerUserId); // Log owner ID
     
     // Check authorization based on visibility
     let authorized = false;
     
     // For personal prompts, only creator can delete
     if (existingPrompt.visibility !== 'team') {
-      authorized = sessionUserId === promptUserId;
+      authorized = sessionUserId === promptOwnerUserId;
     } 
     // For team prompts, use role-based permissions
     else if (existingPrompt.teamId) {
@@ -196,12 +200,50 @@ async function deletePrompt(req, res, id) {
     console.log('API Delete Authorization successful.');
     // --- End Authorization Check ---
     
+    // Fetch prompt title before deleting for the audit log
+    let promptTitle = 'Unknown';
+    let promptTeamId = null;
+    if (existingPrompt.title) {
+      promptTitle = existingPrompt.title;
+    }
+    if (existingPrompt.teamId) {
+      promptTeamId = existingPrompt.teamId.toString();
+    }
+
     // Delete the prompt
     const success = await promptRepository.deletePrompt(id);
     
     if (!success) {
       return res.status(500).json({ message: 'Failed to delete prompt' });
     }
+
+    // --- Audit Log --- 
+    await logAuditEvent({
+      userId: sessionUserId, // User performing the delete
+      action: 'delete_prompt',
+      targetType: 'prompt',
+      targetId: id.toString(),
+      details: { title: promptTitle, creatorId: promptOwnerUserId, teamId: promptTeamId }
+    });
+    // --- End Audit Log ---
+
+    // --- Decrement User Prompt Count (after successful deletion) ---
+    if (promptOwnerUserId) { // Ensure we have an owner ID
+        try {
+            // Decrement count, ensuring it doesn't go below 0 (though schema has min:0)
+            await User.updateOne(
+                { _id: promptOwnerUserId, promptCount: { $gt: 0 } }, // Only decrement if count > 0
+                { $inc: { promptCount: -1 } }
+            );
+            console.log(`Successfully decremented prompt count for user ${promptOwnerUserId}`);
+        } catch (decError) {
+            // Log error but don't fail the main delete operation
+            console.error(`Error decrementing prompt count for user ${promptOwnerUserId}:`, decError);
+        }
+    } else {
+        console.warn(`Could not decrement prompt count: Owner ID missing for prompt ${id}`);
+    }
+    // --- End Decrement ---
     
     return res.status(200).json({ message: 'Prompt deleted successfully' });
   } catch (error) {

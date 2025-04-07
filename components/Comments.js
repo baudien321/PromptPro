@@ -1,16 +1,17 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { formatDate } from '../lib/utils';
+import { TrashIcon } from '@heroicons/react/24/solid';
 
 /**
  * Comments component for displaying and managing comments on a prompt
  * @param {Object} props - Component props
  * @param {string} props.promptId - ID of the prompt
- * @param {Array} props.initialComments - Initial comments data
  */
-export default function Comments({ promptId, initialComments = [] }) {
+export default function Comments({ promptId }) {
   const { data: session } = useSession();
-  const [comments, setComments] = useState(initialComments);
+  const [comments, setComments] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -23,53 +24,46 @@ export default function Comments({ promptId, initialComments = [] }) {
   }, [promptId]);
   
   const fetchComments = async () => {
+    setIsLoading(true);
+    setError(null);
     try {
       const response = await fetch(`/api/prompts/${promptId}/comments`);
-      
       if (!response.ok) {
         throw new Error('Failed to fetch comments');
       }
-      
       const data = await response.json();
-      setComments(data);
-      
+      setComments(data || []);
     } catch (error) {
       console.error('Error fetching comments:', error);
       setError('Failed to load comments');
+      setComments([]);
+    } finally {
+        setIsLoading(false);
     }
   };
   
   // Submit a new comment
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!newComment.trim()) return;
-    
+    if (!newComment.trim() || isSubmitting) return;
     setIsSubmitting(true);
     setError(null);
-    
     try {
       const response = await fetch(`/api/prompts/${promptId}/comments`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ content: newComment }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: newComment.trim() }),
       });
-      
       if (!response.ok) {
-        throw new Error('Failed to add comment');
+         const errData = await response.json();
+        throw new Error(errData.message || 'Failed to add comment');
       }
-      
       const addedComment = await response.json();
-      
-      // Add the new comment to the list
-      setComments([...comments, addedComment]);
+      setComments(prevComments => [addedComment, ...prevComments]);
       setNewComment('');
-      
     } catch (error) {
       console.error('Error adding comment:', error);
-      setError('Failed to add comment');
+      setError(error.message || 'Failed to add comment. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
@@ -77,27 +71,37 @@ export default function Comments({ promptId, initialComments = [] }) {
   
   // Delete a comment
   const handleDelete = async (commentId) => {
-    try {
-      const response = await fetch(`/api/comments/${commentId}`, {
-        method: 'DELETE',
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to delete comment');
-      }
-      
-      // Remove the deleted comment from the list
-      setComments(comments.filter(comment => comment.id !== commentId));
-      
-    } catch (error) {
-      console.error('Error deleting comment:', error);
-      setError('Failed to delete comment');
-    }
+     if (!confirm('Are you sure you want to delete this comment?')) return;
+
+     const commentToDelete = comments.find(c => c._id === commentId);
+     if (!commentToDelete || commentToDelete.author?._id !== session?.user?.id) {
+         setError("Cannot delete this comment.");
+         return;
+     }
+
+     setComments(prevComments => prevComments.filter(comment => comment._id !== commentId));
+     setError(null);
+
+     try {
+       const response = await fetch(`/api/prompts/${promptId}/comments/${commentId}`, {
+         method: 'DELETE',
+       });
+       
+       if (!response.ok) {
+         const errData = await response.json();
+         throw new Error(errData.message || 'Failed to delete comment on server');
+       }
+       
+     } catch (error) {
+       console.error('Error deleting comment:', error);
+       setError(error.message || 'Failed to delete comment. Please try again.');
+       setComments(prevComments => [...prevComments, commentToDelete].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)));
+     }
   };
   
   return (
-    <div className="mt-8 bg-white rounded-lg border p-4">
-      <h3 className="text-lg font-semibold mb-4">Comments</h3>
+    <div className="mt-8 bg-white rounded-lg border p-6 shadow-sm">
+      <h3 className="text-xl font-semibold mb-4 text-gray-800">Comments</h3>
       
       {error && (
         <div className="bg-red-50 text-red-700 p-3 rounded-md mb-4">
@@ -105,48 +109,16 @@ export default function Comments({ promptId, initialComments = [] }) {
         </div>
       )}
       
-      {/* Comment list */}
-      <div className="space-y-4 mb-6">
-        {comments.length === 0 ? (
-          <p className="text-gray-500 text-sm">No comments yet. Be the first to comment!</p>
-        ) : (
-          comments.map((comment) => (
-            <div key={comment.id} className="border-b pb-3">
-              <div className="flex justify-between items-start">
-                <div>
-                  <div className="font-medium">{comment.createdBy}</div>
-                  <div className="text-xs text-gray-500">{formatDate(comment.createdAt)}</div>
-                </div>
-                
-                {/* Delete button (only for own comments) */}
-                {session?.user?.id === comment.userId && (
-                  <button
-                    onClick={() => handleDelete(comment.id)}
-                    className="text-gray-500 hover:text-red-600"
-                    title="Delete comment"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-              <div className="mt-1 text-gray-700">{comment.content}</div>
-            </div>
-          ))
-        )}
-      </div>
-      
-      {/* Comment form */}
+      {/* Comment form (only if logged in) */}
       {session ? (
-        <form onSubmit={handleSubmit}>
-          <div className="mb-3">
+        <form onSubmit={handleSubmit} className="mb-6">
+          <div className="mb-2">
             <label htmlFor="comment" className="sr-only">Add a comment</label>
             <textarea
               id="comment"
-              className="w-full border rounded-md px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border rounded-md px-3 py-2 text-gray-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition duration-150 ease-in-out sm:text-sm"
               rows="3"
-              placeholder="Add a comment..."
+              placeholder="Write a comment..."
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
               disabled={isSubmitting}
@@ -155,14 +127,15 @@ export default function Comments({ promptId, initialComments = [] }) {
           <div className="flex justify-end">
             <button
               type="submit"
-              className={`px-4 py-2 text-sm text-white rounded ${
-                isSubmitting || !newComment.trim() 
-                  ? 'bg-blue-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700'
-              }`}
+              className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 disabled:opacity-50 disabled:cursor-not-allowed transition duration-150 ease-in-out"
               disabled={isSubmitting || !newComment.trim()}
             >
-              {isSubmitting ? 'Posting...' : 'Post Comment'}
+              {isSubmitting ? (
+                   <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Posting...
+                   </>
+                ): 'Post Comment'}
             </button>
           </div>
         </form>
@@ -173,6 +146,46 @@ export default function Comments({ promptId, initialComments = [] }) {
           </p>
         </div>
       )}
+      
+      {/* Comment list */}
+      <div className="space-y-4">
+         {isLoading ? (
+             <p className="text-gray-500 text-sm">Loading comments...</p>
+         ) : comments.length === 0 ? (
+          <p className="text-gray-500 text-sm">No comments yet.</p>
+        ) : (
+          comments.map((comment) => (
+            <div key={comment._id} className="border-t pt-4 first:border-t-0">
+              <div className="flex justify-between items-start">
+                <div className="flex items-center space-x-3">
+                   {/* Basic Avatar */} 
+                  <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 font-semibold">
+                     {comment.author?.name ? comment.author.name.charAt(0).toUpperCase() : 'U'}
+                  </div>
+                  <div>
+                    <div className="font-medium text-sm text-gray-800">{comment.author?.name || 'Unknown User'}</div>
+                    <div className="text-xs text-gray-500">{formatDate(comment.createdAt)}</div>
+                  </div>
+                </div>
+                
+                {/* Delete button (only for comment author) */} 
+                {session?.user?.id === comment.author?._id && (
+                  <button
+                    onClick={() => handleDelete(comment._id)}
+                    className="text-gray-400 hover:text-red-600 p-1 rounded hover:bg-red-50 transition duration-150 ease-in-out"
+                    title="Delete comment"
+                  >
+                     <span className="sr-only">Delete comment</span>
+                     <TrashIcon className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {/* Use whitespace-pre-wrap to preserve line breaks in comment */} 
+              <p className="mt-2 text-gray-700 text-sm whitespace-pre-wrap">{comment.content}</p>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }

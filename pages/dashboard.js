@@ -5,6 +5,7 @@ import StatCard from '../components/Dashboard/StatCard';
 import ActivityFeed from '../components/Dashboard/ActivityFeed';
 import TopPrompts from '../components/Dashboard/TopPrompts';
 import PopularTags from '../components/Dashboard/PopularTags';
+import TemplateSuggestions from '../components/Dashboard/TemplateSuggestions';
 import { useToast } from '../components/ToastContainer';
 import { calculateStatistics, getRecentActivity } from '../lib/utils';
 import { 
@@ -32,6 +33,8 @@ export default function Dashboard() {
     topPrompts: []
   });
   const [activity, setActivity] = useState([]);
+  const [templatePrompts, setTemplatePrompts] = useState([]);
+  const [isNewUserExperience, setIsNewUserExperience] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
 
@@ -84,36 +87,53 @@ export default function Dashboard() {
   // Fetch data for dashboard
   useEffect(() => {
     async function fetchDashboardData() {
+      if (status === 'loading' || !session?.user?.id) return;
+
       setIsLoading(true);
+      const userId = session.user.id;
+
       try {
-        // Fetch prompts
-        const promptsRes = await fetch('/api/prompts');
-        const prompts = await promptsRes.json();
-        
-        // Fetch collections
-        const collectionsRes = await fetch('/api/collections');
+        // Fetch user's prompts AND template prompts in parallel
+        const [userPromptsRes, templatePromptsRes, collectionsRes] = await Promise.all([
+          fetch(`/api/prompts/user?t=${Date.now()}`),
+          fetch(`/api/prompts?tags=template&t=${Date.now()}`),
+          fetch('/api/collections')
+        ]);
+
+        if (!userPromptsRes.ok) throw new Error('Failed to fetch user prompts');
+        if (!templatePromptsRes.ok) throw new Error('Failed to fetch template prompts');
+        if (!collectionsRes.ok) throw new Error('Failed to fetch collections');
+
+        const userPrompts = await userPromptsRes.json();
+        const templates = await templatePromptsRes.json();
         const collections = await collectionsRes.json();
-        
-        // Calculate statistics
-        const stats = calculateStatistics(prompts);
+
+        // --- New User Check ---
+        setIsNewUserExperience(userPrompts.length === 0);
+        setTemplatePrompts(templates);
+        // ---------------------
+
+        // Calculate statistics based on USER's prompts only
+        const stats = calculateStatistics(userPrompts);
         setStatistics(stats);
         
-        // Get recent activity
+        // Get recent activity (can use user prompts and collections)
         const activityData = getRecentActivity({ 
-          prompts, 
+          prompts: userPrompts, 
           collections 
         });
         setActivity(activityData);
+
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        errorToast('Failed to load dashboard data');
+        errorToast('Failed to load dashboard data: ' + error.message);
       } finally {
         setIsLoading(false);
       }
     }
 
     fetchDashboardData();
-  }, [errorToast]);
+  }, [session, status, errorToast]);
 
   return (
     <Layout>
@@ -135,6 +155,12 @@ export default function Dashboard() {
             </button>
           </div>
         </div>
+
+        {isNewUserExperience && templatePrompts.length > 0 && (
+          <div className="mb-8">
+            <TemplateSuggestions templates={templatePrompts} />
+          </div>
+        )}
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

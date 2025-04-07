@@ -17,15 +17,37 @@
 /**
  * Comment model definition
  */
-export const commentModel = {
-  id: '',
-  promptId: '',
-  userId: '',
-  content: '',
-  createdBy: '',
-  createdAt: '',
-  updatedAt: '',
-};
+import mongoose, { Schema, models } from 'mongoose';
+
+const CommentSchema = new Schema({
+    prompt: { // Renamed from promptId for clarity and standard ref naming
+        type: Schema.Types.ObjectId,
+        ref: 'Prompt', // Reference the Prompt model
+        required: [true, 'Prompt reference is required.'],
+        index: true // Index for efficient querying of comments by prompt
+    },
+    author: { // Renamed from userId/creator
+        type: Schema.Types.ObjectId,
+        ref: 'User', // Reference the User model
+        required: [true, 'Author reference is required.']
+    },
+    content: {
+        type: String,
+        required: [true, 'Comment content cannot be empty.'],
+        trim: true,
+        maxlength: [1000, 'Comment cannot exceed 1000 characters.']
+    }
+    // Add fields for replies/threading later if needed
+    // parentComment: { type: Schema.Types.ObjectId, ref: 'Comment' },
+    // replies: [{ type: Schema.Types.ObjectId, ref: 'Comment' }]
+}, {
+    timestamps: true // Automatically add createdAt and updatedAt
+});
+
+// --- Model Creation ---
+const Comment = models.Comment || mongoose.model('Comment', CommentSchema);
+
+export default Comment;
 
 /**
  * Validate comment data

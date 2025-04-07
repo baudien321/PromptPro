@@ -8,14 +8,18 @@ const UserSchema = new Schema({
     unique: [true, 'Username already exists.'],
     match: [/^(?=.{4,20}$)(?![_.])(?!.*[_.]{2})[a-zA-Z0-9._]+(?<![_.])$/, "Username invalid, it should contain 4-20 alphanumeric letters and be unique!"] // Example regex validation
   },
-  name: { // Keeping 'name' for display purposes potentially
+  name: {
     type: String,
+    required: [true, 'Name is required.'],
+    trim: true
   },
   email: {
     type: String,
     required: [true, 'Email is required.'],
-    unique: [true, 'Email already exists.'],
-    match: [/\S+@\S+\.\S+/, 'Email is invalid.'] // Basic email format check
+    unique: true,
+    lowercase: true,
+    trim: true,
+    match: [/\S+@\S+\.\S+/, 'Please use a valid email address.']
   },
   password: {
     type: String,
@@ -27,8 +31,8 @@ const UserSchema = new Schema({
   },
   role: {
     type: String,
-    enum: ['viewer', 'editor', 'admin'], // Define allowed roles
-    default: 'viewer' // Default role for new users
+    enum: ['user', 'admin'],
+    default: 'user'
   },
   bio: {
       type: String,
@@ -36,7 +40,26 @@ const UserSchema = new Schema({
   },
   preferences: {
       type: Object // Or define a more specific sub-schema if needed
-  }
+  },
+  hasCompletedOnboarding: {
+    type: Boolean,
+    default: false
+  },
+  // --- Payment/Plan Fields ---
+  plan: {
+      type: String,
+      enum: ['Free', 'Pro'], // Use 'Free' and 'Pro' for plan names
+      default: 'Free' // Default to the 'Free' plan
+  },
+  promptCount: {
+      type: Number,
+      default: 0,
+      min: 0 // Ensure count doesn't go below zero
+  },
+  stripeCustomerId: { // Optional: Store Stripe Customer ID if using Stripe
+      type: String,
+      index: true // Index if you often look up users by Stripe ID
+  },
   // Mongoose automatically adds createdAt and updatedAt
 }, { timestamps: true }); // Enable automatic timestamps
 

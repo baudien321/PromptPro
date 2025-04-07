@@ -2,9 +2,11 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import User from '../../../models/user'; // Adjust path if needed
 import { validateUser } from '../../../models/user'; // Import the validator
+import connectDB from '../../../lib/mongoose'; // Import the shared connection function
 
 // Simple Mongoose connection helper (you might move this to a separate lib file)
 // Caches the connection promise
+/*
 let connectionPromise = null;
 const connectDB = async () => {
   if (connectionPromise) {
@@ -33,6 +35,7 @@ const connectDB = async () => {
 
   return connectionPromise;
 };
+*/
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {

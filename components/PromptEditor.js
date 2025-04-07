@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import Button from './Button';
 import TagSuggestions from './TagSuggestions';
+import templates from '../data/prompt-templates.json';
 import {
   TrashIcon,
   PlusCircleIcon,
@@ -14,7 +15,9 @@ import {
   UsersIcon,
   LockClosedIcon,
   GlobeAltIcon,
+  DocumentDuplicateIcon
 } from '@heroicons/react/24/outline';
+import { Switch } from '@headlessui/react';
 
 const AI_PLATFORMS = [
   { id: 'ChatGPT', name: 'ChatGPT', icon: <ChatBubbleBottomCenterTextIcon className="h-5 w-5" /> },
@@ -31,6 +34,10 @@ const VISIBILITY_OPTIONS = [
   { id: 'public', name: 'Public', description: 'Anyone can view', icon: GlobeAltIcon },
 ];
 
+function classNames(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
+
 export default function PromptEditor({ existingPrompt = null, onSubmit, isLoading }) {
   const router = useRouter();
   const { data: session } = useSession();
@@ -42,7 +49,7 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
     content: '',
     description: '',
     tags: [],
-    aiPlatform: 'ChatGPT',
+    platformCompatibility: [],
     visibility: 'private',
     teamId: null,
     currentTag: ''
@@ -50,6 +57,7 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
   
   const [errors, setErrors] = useState({});
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
   
   useEffect(() => {
     if (session) {
@@ -61,12 +69,23 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
     if (existingPrompt) {
       setFormData({
         title: existingPrompt.title || '',
-        content: existingPrompt.content || '',
+        content: existingPrompt.text || '',
         description: existingPrompt.description || '',
         tags: existingPrompt.tags || [],
-        aiPlatform: existingPrompt.aiPlatform || 'ChatGPT',
+        platformCompatibility: existingPrompt.platformCompatibility || [],
         visibility: existingPrompt.visibility || 'private',
         teamId: existingPrompt.teamId || null,
+        currentTag: ''
+      });
+    } else {
+      setFormData({
+        title: '',
+        content: '',
+        description: '',
+        tags: [],
+        platformCompatibility: [],
+        visibility: 'private',
+        teamId: null,
         currentTag: ''
       });
     }
@@ -104,6 +123,20 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
     if (name === 'visibility' && value !== 'team' && errors.teamId) {
       setErrors(prev => { const newErrors = { ...prev }; delete newErrors.teamId; return newErrors; });
     }
+  };
+  
+  const handlePlatformChange = (e) => {
+    const { value, checked } = e.target;
+    setFormData(prev => {
+      const currentPlatforms = prev.platformCompatibility || [];
+      let updatedPlatforms;
+      if (checked) {
+        updatedPlatforms = [...currentPlatforms, value];
+      } else {
+        updatedPlatforms = currentPlatforms.filter(platform => platform !== value);
+      }
+      return { ...prev, platformCompatibility: updatedPlatforms };
+    });
   };
   
   const handleTagKeyDown = (e) => {
@@ -155,10 +188,10 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
     
     const promptData = {
       title: formData.title.trim(),
-      content: formData.content.trim(),
+      text: formData.content.trim(),
       description: formData.description.trim() || "",
       tags: formData.tags || [],
-      aiPlatform: formData.aiPlatform || "ChatGPT",
+      platformCompatibility: formData.platformCompatibility || [],
       visibility: formData.visibility || "private",
       teamId: formData.visibility === 'team' ? formData.teamId : null
     };
@@ -176,6 +209,20 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
   
   const handleCancel = () => {
     router.back();
+  };
+  
+  const handleTemplateSelect = (templateId) => {
+    setSelectedTemplateId(templateId);
+    const selectedTemplate = templates.find(t => t.id === templateId);
+    if (selectedTemplate) {
+      setFormData(prev => ({
+        ...prev,
+        content: selectedTemplate.content
+      }));
+      if (errors.content) {
+        setErrors(prev => { const newErrors = { ...prev }; delete newErrors.content; return newErrors; });
+      }
+    }
   };
   
   return (
@@ -208,6 +255,30 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
                 <p className="mt-1 text-sm text-red-500">{errors.title}</p>
               )}
             </div>
+          </div>
+          
+          <div>
+            <label htmlFor="template-select" className="block text-sm font-medium text-gray-700">
+              Apply a Template (Optional)
+            </label>
+            <div className="mt-1 flex rounded-md shadow-sm">
+              <select 
+                id="template-select"
+                value={selectedTemplateId}
+                onChange={(e) => handleTemplateSelect(e.target.value)}
+                className="block w-full rounded-none rounded-l-md border-gray-300 focus:border-primary-500 focus:ring-primary-500 sm:text-sm"
+              >
+                <option value="">-- Select a template --</option>
+                {templates.map(template => (
+                  <option key={template.id} value={template.id}>
+                    {template.name} - {template.description}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="mt-2 text-sm text-gray-500">
+              Selecting a template will replace the current prompt content.
+            </p>
           </div>
           
           <div>
@@ -312,56 +383,41 @@ export default function PromptEditor({ existingPrompt = null, onSubmit, isLoadin
             </p>
           </div>
           
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              AI Platform
-            </label>
-            <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {AI_PLATFORMS.map(platform => (
-                <label
-                  key={platform.id}
-                  htmlFor={`aiPlatform-${platform.id}`}
-                  className={`relative flex items-center space-x-3 rounded-lg border px-3 py-2 shadow-sm focus-within:ring-1 focus-within:ring-offset-2 cursor-pointer ${
-                    formData.aiPlatform === platform.id
-                      ? 'border-primary-500 ring-1 ring-primary-500'
-                      : 'border-gray-300'
-                  } hover:border-primary-400`}
-                >
-                  <input
-                    type="radio"
-                    id={`aiPlatform-${platform.id}`}
-                    name="aiPlatform"
-                    value={platform.id}
-                    checked={formData.aiPlatform === platform.id}
-                    onChange={handleChange}
-                    className="sr-only"
-                    aria-labelledby={`aiPlatform-${platform.id}-label`}
-                    aria-describedby={`aiPlatform-${platform.id}-description`}
-                  />
-                  <div className="flex-shrink-0">
-                    {platform.icon}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <span id={`aiPlatform-${platform.id}-label`} className="block font-medium text-sm text-gray-900">
-                      {platform.name}
-                    </span>
-                  </div>
-                </label>
-              ))}
-            </div>
-          </div>
-          
-          <div className="pt-2">
-            <button
+          <div className="border-t border-gray-200 pt-6 mt-6">
+            <button 
               type="button"
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="text-sm font-medium text-primary-600 hover:text-primary-700"
+              className="text-sm font-medium text-primary-600 hover:text-primary-800 mb-4"
             >
-              {showAdvanced ? 'Hide' : 'Show'} Advanced Options
+              {showAdvanced ? 'Hide' : 'Show'} Advanced Options (Platform, Visibility)
             </button>
-            
+
             {showAdvanced && (
-              <div className="space-y-6 border-t border-gray-200 pt-6">
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Platform Compatibility (Select all that apply)
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {AI_PLATFORMS.map(platform => (
+                      <div key={platform.id} className="flex items-center">
+                        <input
+                          id={`platform-${platform.id}`}
+                          name="platformCompatibility"
+                          type="checkbox"
+                          value={platform.id}
+                          checked={formData.platformCompatibility.includes(platform.id)}
+                          onChange={handlePlatformChange}
+                          className="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                        />
+                        <label htmlFor={`platform-${platform.id}`} className="ml-2 block text-sm text-gray-900">
+                          {platform.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
                     Visibility

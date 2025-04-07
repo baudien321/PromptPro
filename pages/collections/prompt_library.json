@@ -1,0 +1,82 @@
+{
+  "Prompt Library": [
+    {
+      "category": "Social Media Marketing Prompts",
+      "use_case": "Fast content creation for busy social media managers",
+      "prompts": [
+        {
+          "title": "Instagram Caption Generator",
+          "prompt": "Write a friendly, engaging Instagram caption for a product photo of a handmade leather wallet. Emphasize craftsmanship, and include 3 relevant hashtags."
+        },
+        {
+          "title": "Twitter/X Thread Explainer",
+          "prompt": "Create a 5-tweet educational thread explaining why CRM is essential for small businesses. Use casual tone, emojis, and a hook in the first tweet."
+        },
+        {
+          "title": "LinkedIn Post for Brand Story",
+          "prompt": "Write a professional but personal LinkedIn post introducing a new hire and sharing why they joined our company\u2019s mission (software for remote teams)."
+        },
+        {
+          "title": "TikTok Video Script",
+          "prompt": "Create a short, catchy TikTok video script that shows how our app helps remote teams reduce Zoom fatigue. Include 3 scenes and a humorous twist."
+        },
+        {
+          "title": "Hashtag Brainstormer",
+          "prompt": "Generate 10 engaging hashtags for a skincare brand running a summer glow campaign."
+        }
+      ]
+    },
+    {
+      "category": "Email Campaigns & Newsletters",
+      "use_case": "Make email creation easy for marketing or sales folks",
+      "prompts": [
+        {
+          "title": "Cold Outreach Email",
+          "prompt": "Write a short, professional cold email for a B2B SaaS company offering accounting automation for ecommerce stores."
+        },
+        {
+          "title": "Abandoned Cart Recovery",
+          "prompt": "Create a friendly abandoned cart reminder email for a candle shop. Include a 10% discount incentive and urgency."
+        },
+        {
+          "title": "Newsletter Headline Ideas",
+          "prompt": "Generate 5 catchy subject line options for this week\u2019s newsletter covering 3 new blog posts about productivity hacks."
+        },
+        {
+          "title": "Customer Onboarding Email",
+          "prompt": "Write a welcome email for new users of our time tracking app. Keep it concise and highlight 3 next steps."
+        },
+        {
+          "title": "Win-back Campaign",
+          "prompt": "Write a warm, conversational email to re-engage users who haven\u2019t opened emails in 30 days."
+        }
+      ]
+    },
+    {
+      "category": "Internal Team Productivity & Operations",
+      "use_case": "Helping managers or ops people run smoother teams",
+      "prompts": [
+        {
+          "title": "Weekly Team Summary",
+          "prompt": "Summarize this week\u2019s team updates from 3 bullet points per teammate into a professional 1-paragraph Slack post."
+        },
+        {
+          "title": "Meeting Agenda Builder",
+          "prompt": "Create a 30-minute meeting agenda for our weekly check-in. Topics: project status, blockers, and next week goals."
+        },
+        {
+          "title": "Performance Review Draft",
+          "prompt": "Write a constructive performance review summary for a junior designer. Highlight strengths and 2 suggested growth areas."
+        },
+        {
+          "title": "SOP Documentation Prompt",
+          "prompt": "Write a standard operating procedure for onboarding a new customer to our software. Include 5 steps and best practices."
+        },
+        {
+          "title": "Time-Saving Email Template",
+          "prompt": "Generate a reusable internal email template for requesting project updates from cross-functional teams."
+        }
+      ]
+    }
+  ]
+}

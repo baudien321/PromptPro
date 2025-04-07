@@ -1,3 +1,5 @@
+import mongoose, { Schema, models } from 'mongoose';
+
 // Prompt model structure
 
 // Define supported AI platforms
@@ -10,145 +12,173 @@ export const SUPPORTED_AI_PLATFORMS = [
   'Other' // Allow a generic 'Other' category
 ];
 
-export const promptModel = {
-  id: Number,
-  title: String,
-  content: String,
-  description: String, // Brief description of what the prompt does
-  tags: Array, // of strings
-  aiPlatform: String, // Primary platform, e.g., 'ChatGPT', 'Claude', etc.
-  compatiblePlatforms: Array, // Other platforms this prompt might work on (optional)
-  rating: Number, // 1-5 rating
-  usageCount: Number, // How many times the prompt has been used
-  successRate: Number, // Percentage of successful uses (0-100)
-  visibility: String, // 'public', 'private', 'team'
-  userId: Number, // ID of the user who created the prompt
-  createdBy: String, // Name of the user who created the prompt
-  teamId: Number, // ID of the team if shared with a team (optional)
-  createdAt: String, // ISO date string
-  updatedAt: String, // ISO date string
-};
+const RatingSchema = new Schema({
+    user: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    value: {
+        type: Number,
+        required: true,
+        min: 1,
+        max: 5
+    }
+}, { _id: false }); // Don't create separate _id for subdocuments
 
-// Validate prompt data
-export const validatePrompt = (data) => {
-  const errors = {};
-  
-  // Required fields
-  if (!data.title) {
-    errors.title = 'Title is required';
-  } else if (data.title.length < 3) {
-    errors.title = 'Title must be at least 3 characters';
-  } else if (data.title.length > 100) {
-    errors.title = 'Title must be less than 100 characters';
-  }
-  
-  if (!data.content) {
-    errors.content = 'Content is required';
-  } else if (data.content.length < 10) {
-    errors.content = 'Content must be at least 10 characters';
-  }
-  
-  // Optional description
-  if (data.description && data.description.length > 500) {
-    errors.description = 'Description must be less than 500 characters';
-  }
-  
-  // Tags validation
-  if (data.tags) {
-    if (!Array.isArray(data.tags)) {
-      errors.tags = 'Tags must be an array';
-    } else {
-      for (let i = 0; i < data.tags.length; i++) {
-        const tag = data.tags[i];
-        if (typeof tag !== 'string') {
-          errors.tags = 'All tags must be strings';
-          break;
-        }
-        if (tag.length < 1) {
-          errors.tags = 'Tags cannot be empty';
-          break;
-        }
-        if (tag.length > 20) {
-          errors.tags = 'Tags must be less than 20 characters';
-          break;
-        }
-      }
-    }
-  }
-  
-  // AI Platform validation (Primary)
-  if (data.aiPlatform) {
-      if (typeof data.aiPlatform !== 'string') {
-          errors.aiPlatform = 'AI Platform must be a string';
-      } else if (!SUPPORTED_AI_PLATFORMS.includes(data.aiPlatform)) {
-          errors.aiPlatform = `AI Platform must be one of: ${SUPPORTED_AI_PLATFORMS.join(', ')}`;
-      }
-  } else {
-      // Make primary platform required, or default it? For now, let's require it if provided.
-      // If it's truly optional, remove this else block. Assuming it might be optional for now.
-  }
+const PromptSchema = new Schema({
+    title: {
+        type: String,
+        required: [true, 'Title is required.'],
+        trim: true,
+        minlength: [3, 'Title must be at least 3 characters.'],
+        maxlength: [150, 'Title cannot exceed 150 characters.'] // Increased length slightly
+    },
+    text: { // Renamed from content
+        type: String,
+        required: [true, 'Prompt text is required.'],
+        trim: true,
+        minlength: [10, 'Prompt text must be at least 10 characters.']
+    },
+    description: {
+        type: String,
+        trim: true,
+        maxlength: [500, 'Description cannot exceed 500 characters.']
+    },
+    creator: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+        required: [true, 'Creator is required.']
+    },
+    tags: [{
+        type: String,
+        trim: true,
+        lowercase: true, // Store tags consistently
+        validate: [arrayLimit, '{PATH} exceeds the limit of 10 tags']
+    }],
+    platformCompatibility: [{
+        type: String,
+        enum: SUPPORTED_AI_PLATFORMS // Validate against the list
+    }],
+    // Basic performance tracking fields
+    usageCount: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    ratings: [RatingSchema], // Array to store individual user ratings
+    successCount: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    failureCount: {
+        type: Number,
+        default: 0,
+        min: 0
+    },
+    visibility: {
+        type: String,
+        enum: ['private', 'team', 'public'], // Define possible visibility states
+        default: 'private', // Default to private unless specified
+        required: true,
+        index: true
+    },
+    teamId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Team', // Reference the Team model
+        index: true,
+        sparse: true
+    },
+    isEffective: {
+        type: Boolean,
+        default: null, // Use null to signify unset/unknown status
+        index: true
+    },
+    variables: {
+        type: [String], // Array of variable names (e.g., ["customerName", "product"])
+        default: []
+    },
+    version: {
+        type: Number,
+        default: 1
+    },
+    // history: [PromptHistorySchema] // If implementing version history later
+}, {
+    timestamps: true // Automatically add createdAt and updatedAt
+});
 
-  // Compatible Platforms validation (Optional)
-  if (data.compatiblePlatforms) {
-    if (!Array.isArray(data.compatiblePlatforms)) {
-      errors.compatiblePlatforms = 'Compatible Platforms must be an array';
-    } else {
-      for (let i = 0; i < data.compatiblePlatforms.length; i++) {
-        const platform = data.compatiblePlatforms[i];
-        if (typeof platform !== 'string') {
-          errors.compatiblePlatforms = 'All compatible platforms must be strings';
-          break;
-        }
-        if (!SUPPORTED_AI_PLATFORMS.includes(platform)) {
-          errors.compatiblePlatforms = `Compatible platform "${platform}" is not supported. Must be one of: ${SUPPORTED_AI_PLATFORMS.join(', ')}`;
-          break;
-        }
-      }
-      // Ensure compatible platforms don't duplicate the primary platform if both are set
-      if (data.aiPlatform && data.compatiblePlatforms.includes(data.aiPlatform)) {
-          errors.compatiblePlatforms = 'Compatible Platforms should not include the primary AI Platform.';
-      }
+// --- Indexing --- 
+// Index fields that are often queried/sorted
+PromptSchema.index({ creator: 1, createdAt: -1 });
+PromptSchema.index({ tags: 1 });
+PromptSchema.index({ title: 'text', description: 'text' }); // For text search later
+PromptSchema.index({ teamId: 1 }); // Add index for teamId
+PromptSchema.index({ title: 'text', text: 'text', description: 'text', tags: 'text' });
+
+// --- Virtuals (Example: Average Rating - Calculation might be complex/deferred) ---
+/*
+PromptSchema.virtual('averageRating').get(function() {
+    if (this.ratings && this.ratings.length > 0) {
+        const sum = this.ratings.reduce((acc, rating) => acc + rating.value, 0);
+        return sum / this.ratings.length;
     }
-  }
-  
-  // Rating validation (1-5)
-  if (data.rating !== undefined) {
-    if (typeof data.rating !== 'number') {
-      errors.rating = 'Rating must be a number';
-    } else if (data.rating < 1 || data.rating > 5) {
-      errors.rating = 'Rating must be between 1 and 5';
+    return 0;
+});
+
+PromptSchema.virtual('successRate').get(function() {
+    const totalFeedback = this.successCount + this.failureCount;
+    if (totalFeedback === 0) {
+        return null; // Or 0, depending on desired representation
     }
-  }
-  
-  // Usage count validation
-  if (data.usageCount !== undefined && (typeof data.usageCount !== 'number' || data.usageCount < 0)) {
-    errors.usageCount = 'Usage count must be a non-negative number';
-  }
-  
-  // Success rate validation (0-100)
-  if (data.successRate !== undefined) {
-    if (typeof data.successRate !== 'number') {
-      errors.successRate = 'Success rate must be a number';
-    } else if (data.successRate < 0 || data.successRate > 100) {
-      errors.successRate = 'Success rate must be between 0 and 100';
+    return (this.successCount / totalFeedback) * 100;
+});
+
+// Ensure virtuals are included when converting to JSON/Object
+PromptSchema.set('toJSON', { virtuals: true });
+PromptSchema.set('toObject', { virtuals: true });
+*/
+
+// --- Model Creation ---
+const Prompt = models.Prompt || mongoose.model('Prompt', PromptSchema);
+
+export default Prompt;
+
+// --- Validation Function ---
+export function validatePrompt(data) {
+    const errors = {};
+    let isValid = true;
+
+    // Check for required fields
+    if (!data.title || typeof data.title !== 'string' || data.title.trim().length === 0) {
+        errors.title = 'Title is required.';
+        isValid = false;
     }
-  }
-  
-  // Visibility validation
-  if (data.visibility) {
-    const validVisibilities = ['public', 'private', 'team'];
-    if (!validVisibilities.includes(data.visibility)) {
-      errors.visibility = 'Visibility must be one of: public, private, team';
+    // Check the actual schema field 'text'
+    if (!data.text || typeof data.text !== 'string' || data.text.trim().length === 0) {
+        errors.text = 'Prompt text is required.'; // Changed key to 'text'
+        isValid = false;
     }
-    
-    // If visibility is 'team', teamId must be provided
-    if (data.visibility === 'team' && !data.teamId) {
-      errors.teamId = 'Team ID is required when visibility is set to team';
-    }
-  }
-  
-  return {
-    isValid: Object.keys(errors).length === 0,
-    errors
-  };
-};
+
+    // Potential future checks: length constraints, tag formats, etc.
+    // Note: Mongoose schema validation will handle more detailed checks later.
+
+    return {
+        isValid,
+        errors
+    };
+}
+
+// Helper function for array limit validation
+function arrayLimit(val) {
+  return val.length <= 10;
+}
+
+// Ensure teamId is present if visibility is 'team'
+PromptSchema.path('teamId').validate(function(value) {
+    return this.visibility !== 'team' || value != null;
+}, 'Team ID is required when visibility is set to team.');
+
+// Pre-save hook to increment version (Example - adjust if needed)
+// PromptSchema.pre('save', function(next) {
+//     if (!this.isNew && this.isModified()) {
+//         this.version += 1;
+//     }
+//     next();
+// });

@@ -2,11 +2,14 @@
   "/_app": "pages/_app.js",
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
-  "/": "pages/index.js",
-  "/auth/signin": "pages/auth/signin.js",
-  "/api/auth/[...nextauth]": "pages/api/auth/[...nextauth].js",
-  "/auth/signup": "pages/auth/signup.js",
+  "/prompts/[id]": "pages/prompts/[id].js",
   "/api/prompts": "pages/api/prompts.js",
-  "/dashboard": "pages/dashboard.js",
-  "/api/collections": "pages/api/collections.js"
+  "/api/auth/[...nextauth]": "pages/api/auth/[...nextauth].js",
+  "/api/teams": "pages/api/teams.js",
+  "/api/prompts/[id]/comments": "pages/api/prompts/[id]/comments.js",
+  "/prompts/my-prompts": "pages/prompts/my-prompts.js",
+  "/teams": "pages/teams.js",
+  "/api/teams/[id]": "pages/api/teams/[id].js",
+  "/api/prompts/[id]": "pages/api/prompts/[id].js",
+  "/teams/edit/[id]": "pages/teams/edit/[id].js"
 }

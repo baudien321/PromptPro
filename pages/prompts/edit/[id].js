@@ -3,6 +3,9 @@ import { useRouter } from 'next/router';
 import { useSession } from 'next-auth/react';
 import Layout from '../../../components/Layout';
 import PromptEditor from '../../../components/PromptEditor';
+import Button from '../../../components/Button';
+import { ArrowLeftIcon } from '@heroicons/react/24/outline';
+import Link from 'next/link';
 
 export default function EditPrompt() {
   const router = useRouter();
@@ -14,7 +17,7 @@ export default function EditPrompt() {
     },
   });
   
-  const [prompt, setPrompt] = useState(null);
+  const [promptData, setPromptData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -65,7 +68,16 @@ export default function EditPrompt() {
           // Don't set the prompt state if unauthorized
         } else {
           console.log('Authorization successful on client-side.');
-          setPrompt(data);
+          setPromptData({
+            title: data.title || '',
+            text: data.text || '',
+            description: data.description || '',
+            tags: data.tags || [],
+            platformCompatibility: data.platformCompatibility || [],
+            visibility: data.visibility || 'private',
+            teamId: data.teamId || null,
+            isEffective: data.isEffective
+          });
         }
         // --- End Authorization Check ---
         
@@ -90,17 +102,14 @@ export default function EditPrompt() {
     
   }, [id, session, status]); // Add status to dependencies
   
-  const handleSubmit = async (promptData) => {
+  const handleSubmit = async (formData) => {
+    setIsSubmitting(true);
+    setError(null);
     try {
-      setIsSubmitting(true);
-      setError(null);
-      
       const response = await fetch(`/api/prompts/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(promptData),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
         credentials: 'include'
       });
       
@@ -115,8 +124,8 @@ export default function EditPrompt() {
       } else {
         // Success
         const updatedPrompt = await response.json();
-        // Use window.location for a full page reload to ensure data consistency
-        window.location.href = '/prompts/my-prompts?refresh=' + new Date().getTime();
+        // Redirect to the prompt view page after successful update
+        router.push(`/prompts/${updatedPrompt._id}`);
       }
       
     } catch (error) {
@@ -166,7 +175,7 @@ export default function EditPrompt() {
   }
   
   // Render error state or if prompt is null after loading
-  if (error || !prompt) {
+  if (error || !promptData) {
     return (
       <Layout title="PromptPro - Error">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
@@ -174,12 +183,12 @@ export default function EditPrompt() {
             <h1 className="text-xl font-semibold text-red-800">Error</h1>
             <p className="mt-2 text-red-700">{error || 'Failed to load prompt data.'}</p>
             <div className="mt-4">
-              <button
-                onClick={() => router.back()}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-primary-600 hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
-              >
-                Go Back
-              </button>
+              <Link href="/prompts/my-prompts">
+                <Button variant="secondary">
+                  <ArrowLeftIcon className="h-5 w-5 mr-2" />
+                  Back to My Prompts
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
@@ -200,9 +209,11 @@ export default function EditPrompt() {
         )}
         
         <PromptEditor 
-          existingPrompt={prompt} 
+          initialData={promptData} 
           onSubmit={handleSubmit} 
-          isLoading={isSubmitting} 
+          isSubmitting={isSubmitting} 
+          submitError={error}
+          isEditing={true}
         />
       </div>
     </Layout>

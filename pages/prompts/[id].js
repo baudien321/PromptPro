@@ -10,7 +10,6 @@ import UsageCounter from '../../components/UsageCounter';
 import Comments from '../../components/Comments';
 import { formatDate, copyToClipboard } from '../../lib/utils';
 import { canManagePrompt } from '../../lib/permissions';
-import { getTeamById } from '../../lib/db';
 
 import {
   ChatBubbleBottomCenterTextIcon,
@@ -22,7 +21,9 @@ import {
   LightBulbIcon,
   CheckCircleIcon,
   StarIcon,
-  UsersIcon
+  UsersIcon,
+  GlobeAltIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 import { StarIcon as StarIconSolid } from '@heroicons/react/24/solid';
 
@@ -108,7 +109,7 @@ export default function PromptDetail() {
   
   const handleCopyToClipboard = async () => {
     try {
-      await copyToClipboard(prompt.content);
+      await copyToClipboard(prompt.text);
       setCopied(true);
       
       try {
@@ -364,7 +365,7 @@ export default function PromptDetail() {
             <div className="relative bg-gray-50 border border-gray-200 rounded-md p-4 group cursor-pointer" 
                  onClick={handleCopyToClipboard}>
               <pre className="font-mono text-sm whitespace-pre-wrap overflow-x-auto">
-                {prompt.content}
+                {prompt.text}
               </pre>
               <div className="absolute top-2 right-2">
                 <button
@@ -408,6 +409,22 @@ export default function PromptDetail() {
                         {tag}
                       </span>
                     </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {prompt.platformCompatibility && prompt.platformCompatibility.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-gray-200">
+                <h4 className="text-sm font-medium text-gray-500 mb-2">Compatible Platforms:</h4>
+                <div className="flex flex-wrap gap-2">
+                  {prompt.platformCompatibility.map((platform) => (
+                    <span
+                      key={platform}
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                    >
+                      {platform}
+                    </span>
                   ))}
                 </div>
               </div>

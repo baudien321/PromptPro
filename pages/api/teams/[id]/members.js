@@ -1,169 +1,117 @@
 import { withAuth } from '../../../../lib/auth';
-import { getTeamById, addTeamMember, updateTeamMember, removeTeamMember } from '../../../../lib/db';
-import { isTeamAdmin } from '../../../../models/team';
+import Team from '../../../../models/team'; // Import Mongoose model
+import User from '../../../../models/user'; // Import User model for email lookup
+import connectDB from '../../../../lib/mongoose'; // Import DB connector
 
 /**
  * API handler for team member operations
  * 
  * GET: Get team members
  * POST: Add a team member
- * PUT: Update a team member role
- * DELETE: Remove a team member
  */
 async function handler(req, res) {
   const { method } = req;
-  const { id } = req.query;
-  
-  if (!id) {
+  const { id: teamId } = req.query; // Rename id to teamId for clarity
+  const sessionUserId = req.session?.sub;
+
+  if (!teamId) {
     return res.status(400).json({ message: 'Team ID is required' });
   }
-  
-  // Get the team to check permissions
-  const team = getTeamById(id);
-  
-  if (!team) {
-    return res.status(404).json({ message: 'Team not found' });
+  if (!sessionUserId) {
+    return res.status(401).json({ message: 'Authentication required' });
   }
-  
-  switch (method) {
-    case 'GET':
-      return getTeamMembers(req, res, team);
-    case 'POST':
-      return addTeamMemberHandler(req, res, team);
-    case 'PUT':
-      return updateTeamMemberHandler(req, res, team);
-    case 'DELETE':
-      return removeTeamMemberHandler(req, res, team);
-    default:
-      res.setHeader('Allow', ['GET', 'POST', 'PUT', 'DELETE']);
-      return res.status(405).end(`Method ${method} Not Allowed`);
-  }
-}
 
-/**
- * Get team members
- */
-function getTeamMembers(req, res, team) {
   try {
-    return res.status(200).json(team.members || []);
+    await connectDB();
+
+    // Fetch the team for permission checks and operations
+    const team = await Team.findById(teamId).populate('members.user', 'name email'); // Populate user details
+
+    if (!team) {
+      return res.status(404).json({ message: 'Team not found' });
+    }
+
+    // Authorization Check: Must be a member to view or admin to add members
+    const requestingMember = team.members.find(m => m.user._id.equals(sessionUserId));
+    if (!requestingMember) {
+        return res.status(403).json({ message: "Not authorized to access this team's members" });
+    }
+
+    switch (method) {
+      case 'GET':
+        // Any member can list members
+        return res.status(200).json(team.members || []);
+      case 'POST':
+        // Only owner/admin can add members
+        const isAdmin = requestingMember.role === 'owner' || requestingMember.role === 'admin';
+        if (!isAdmin) {
+          return res.status(403).json({ message: 'Not authorized to add members to this team' });
+        }
+        return addTeamMemberHandler(req, res, team);
+      // Remove PUT and DELETE from this handler
+      default:
+        res.setHeader('Allow', ['GET', 'POST']);
+        return res.status(405).end(`Method ${method} Not Allowed`);
+    }
   } catch (error) {
-    console.error('Error fetching team members:', error);
-    return res.status(500).json({ message: 'Failed to fetch team members' });
+    console.error(`Error in /api/teams/[id]/members for team ${teamId}:`, error);
+    if (error.name === 'CastError') {
+      return res.status(400).json({ message: 'Invalid Team ID format' });
+    }
+    return res.status(500).json({ message: 'Internal server error' });
   }
 }
 
-/**
- * Add a new team member
- */
-function addTeamMemberHandler(req, res, team) {
+async function addTeamMemberHandler(req, res, team) { // team object is passed in
+  const { email, role } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: 'User email is required' });
+  }
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // Validate role (owner cannot be assigned, only creator gets it initially)
+  const validRoles = ['admin', 'member'];
+  if (!role || !validRoles.includes(role)) {
+    return res.status(400).json({ message: `Role must be one of: ${validRoles.join(', ')}` });
+  }
+
   try {
-    // Check if user is authenticated
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: 'Authentication required' });
+    // Find the user by email
+    const userToAdd = await User.findOne({ email: normalizedEmail }).select('_id name email');
+    if (!userToAdd) {
+      return res.status(404).json({ message: `User with email ${email} not found` });
     }
-    
-    // Check if user has permission to add team members
-    if (!isTeamAdmin(team, req.user.id)) {
-      return res.status(403).json({ message: 'You do not have permission to add team members' });
+
+    // Check if user is already a member
+    const alreadyMember = team.members.some(member => member.user._id.equals(userToAdd._id));
+    if (alreadyMember) {
+      return res.status(409).json({ message: `User ${userToAdd.email} is already a member of this team` });
     }
-    
-    const { email, role } = req.body;
-    
-    if (!email) {
-      return res.status(400).json({ message: 'Email is required' });
+
+    // Add the new member using $push
+    const updatedTeam = await Team.findByIdAndUpdate(
+      team._id,
+      { $push: { members: { user: userToAdd._id, role: role } } },
+      { new: true, runValidators: true } // Return updated doc, run validators
+    ).populate('members.user', 'name email'); // Populate new member details
+
+    if (!updatedTeam) {
+        // Should not happen if team was found initially
+        throw new Error('Team not found during member addition update');
     }
-    
-    if (!['admin', 'member'].includes(role)) {
-      return res.status(400).json({ message: 'Role must be either "admin" or "member"' });
-    }
-    
-    // Add the member to the team
-    const userData = {
-      email,
-      role,
-      joinedAt: new Date().toISOString(),
-    };
-    
-    const updatedTeam = addTeamMember(team.id, userData);
-    
+
+    // Return the updated list of members
     return res.status(200).json(updatedTeam.members);
+
   } catch (error) {
     console.error('Error adding team member:', error);
+    // Handle potential validation errors from findByIdAndUpdate
+    if (error.name === 'ValidationError') {
+        const errors = Object.values(error.errors).map(el => el.message);
+        return res.status(400).json({ message: 'Validation failed', errors });
+    } 
     return res.status(500).json({ message: 'Failed to add team member' });
-  }
-}
-
-/**
- * Update a team member's role
- */
-function updateTeamMemberHandler(req, res, team) {
-  try {
-    // Check if user is authenticated
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-    
-    // Check if user has permission to update team members
-    if (!isTeamAdmin(team, req.user.id)) {
-      return res.status(403).json({ message: 'You do not have permission to update team members' });
-    }
-    
-    const { userId, role } = req.body;
-    
-    if (!userId) {
-      return res.status(400).json({ message: 'User ID is required' });
-    }
-    
-    if (!['admin', 'member'].includes(role)) {
-      return res.status(400).json({ message: 'Role must be either "admin" or "member"' });
-    }
-    
-    // Prevent changing the owner's role
-    if (team.userId === userId) {
-      return res.status(400).json({ message: 'Cannot change the role of the team owner' });
-    }
-    
-    const updatedTeam = updateTeamMember(team.id, userId, { role });
-    
-    return res.status(200).json(updatedTeam.members);
-  } catch (error) {
-    console.error('Error updating team member:', error);
-    return res.status(500).json({ message: 'Failed to update team member' });
-  }
-}
-
-/**
- * Remove a team member
- */
-function removeTeamMemberHandler(req, res, team) {
-  try {
-    const { userId } = req.body;
-    
-    if (!userId) {
-      return res.status(400).json({ message: 'User ID is required' });
-    }
-    
-    // Prevent removing the owner
-    if (team.userId === userId) {
-      return res.status(400).json({ message: 'Cannot remove the team owner' });
-    }
-    
-    // Check if user is authenticated
-    if (!req.user || !req.user.id) {
-      return res.status(401).json({ message: 'Authentication required' });
-    }
-    
-    // Only an admin can remove members, but members can remove themselves
-    if (!isTeamAdmin(team, req.user.id) && req.user.id !== userId) {
-      return res.status(403).json({ message: 'You do not have permission to remove this team member' });
-    }
-    
-    const updatedTeam = removeTeamMember(team.id, userId);
-    
-    return res.status(200).json(updatedTeam.members);
-  } catch (error) {
-    console.error('Error removing team member:', error);
-    return res.status(500).json({ message: 'Failed to remove team member' });
   }
 }
 
